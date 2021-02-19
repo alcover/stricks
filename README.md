@@ -5,25 +5,6 @@ Experimental managed C-strings library.
 
 :orange_book: [API](#API)
 
-[stx_new](#stx_new)  
-[stx_free](#stx_free)  
-[stx_from](#stx_from)  
-[stx_dup](#stx_dup)  
-[stx_reset](#stx_reset)  
-[stx_resize](#stx_resize)  
-[stx_cap](#stx_cap)  
-[stx_len](#stx_len)  
-[stx_spc](#stx_spc)  
-[stx_append](#stx_append) (stx_cat)  
-[stx_append_alloc](#stx_append_alloc) (stx_cata)  
-[stx_append_count](#stx_append_count) (stx_ncat)  
-[stx_append_count_alloc](#stx_append_count_alloc) (stx_ncata)  
-[stx_append_format](#stx_append_format) (stx_catf)  
-[stx_equal](#stx_equal)  
-[stx_check](#stx_check)  
-[stx_show](#stx_show)  
-
-
 ![schema](assets/block.png)
 
 ## Why ?
@@ -156,7 +137,25 @@ If not, no action is taken and a *falsy* value is returned.
 
 # API
 
-(Shorthands for long names are provided)  
+[stx_new](#stx_new)  
+[stx_free](#stx_free)  
+[stx_from](#stx_from)  
+[stx_dup](#stx_dup)  
+[stx_reset](#stx_reset)  
+[stx_resize](#stx_resize)  
+[stx_cap](#stx_cap)  
+[stx_len](#stx_len)  
+[stx_spc](#stx_spc)  
+[stx_append](#stx_append) / stx_cat  
+[stx_append_alloc](#stx_append_alloc) / stx_cata  
+[stx_append_count](#stx_append_count) / stx_ncat  
+[stx_append_format](#stx_append_format) / stx_catf  
+[stx_append_count_alloc](#stx_append_count_alloc) / stx_ncata  
+[stx_equal](#stx_equal)  
+[stx_check](#stx_check)  
+[stx_show](#stx_show)  
+
+
 
 Custom allocator and destructor can be defined with  
 ```C
