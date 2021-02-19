@@ -33,6 +33,13 @@ struct Header {
 
 typedef struct Header Header;
 
+struct SSO {   
+    uint8_t  cap;  
+    uint8_t  len; 
+    uint8_t cookie; 
+    char    data[]; 
+};
+
 //==== PRIVATE ================================================================
 
 // duck-validate
