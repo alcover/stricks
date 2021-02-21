@@ -25,9 +25,13 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #define HEAD(s,T) ((s) - offsetof(Head##T,data))
 #define FIELD_ADR(s,htype,name) ((char*)(s) - offsetof(htype,data) + offsetof(htype,name))
 #define FIELD_VAL(s,htype,name) (*FIELD_ADR((s),htype,name))
-#define CHECK(s) (s && (((char*)s)[-2] == COOKIE))
+#define CHECK(s) ((s) && (((char*)(s))[-2] == COOKIE))
+#define TYPE(s) (((char*)(s))[-1])
 
 #define COOKIE 147
+
+// #pragma pack(push)
+// #pragma pack(1)   
 
 struct Head64 {   
     size_t  cap;  
@@ -49,6 +53,8 @@ struct Head8 {
 
 typedef struct Head8 Head8;
 
+// #pragma pack(pop)
+
 //==== PRIVATE ================================================================
 
 void* headof(const stx_t s)
@@ -65,16 +71,25 @@ void* headof(const stx_t s)
     return s - off;
 }
 
-// duck-validate
+
 static inline bool
 check (const void* head)
 {
     return head && (((char*)head)[-2] == COOKIE);
 }
 
+static inline size_t
+get_cap (const void* head, char type)
+{
+    if (type == TYPE_SHORT)
+        return ((Head8*)head)->cap;
+    else
+        return ((Head64*)head)->cap;
+}
+
 
 static bool 
-resize (void **phead, const size_t newcap)
+resize (void **phead, char type, const size_t newcap)
 {    
     // negative value - abort
     if ((intmax_t)newcap < 0) {
@@ -86,11 +101,15 @@ resize (void **phead, const size_t newcap)
 
 
     void* head = *phead;
+    void* tmp;
     
-    if (newcap == head->cap) 
+    if (newcap == get_cap(head,type)) 
         return true;
-    
-    void* tmp = realloc (head, BLOCK_SZ(newcap));    
+
+    if (type == TYPE_SHORT)
+        tmp = realloc (head, BLOCK_SZ(8,newcap)); 
+    else
+        tmp = realloc (head, BLOCK_SZ(64,newcap));    
 
     if (!tmp) {
         ERR ("stx_resize: realloc failed\n");
@@ -99,10 +118,15 @@ resize (void **phead, const size_t newcap)
     
     // truncated
     if (newcap < tmp->len) {
+
         #ifdef STX_WARNINGS
             LOG ("stx_resize: truncated");
         #endif
-        tmp->len = newcap;
+
+        if (type == TYPE_SHORT)
+            ((Head8*)tmp)->len = newcap;
+        else
+            ((Head64*)tmp)->len = newcap;
     }
 
     // set new cap sentinel
@@ -138,12 +162,15 @@ append_count (void* dst, const char* src, const size_t n)
 
 //==== PUBLIC ================================================================
 
-#define INIT(head, cap, T) \
+#define NEW(head, cap, T) \
+    void* head = STX_MALLOC (BLOCK_SZ(T,cap)); \
+    if (!head) return NULL; \
     ((Head##T*)head)->cap = cap; \
     ((Head##T*)head)->cookie = COOKIE; \
     ((Head##T*)head)->type = T; \
     ((Head##T*)head)->data[0] = 0; \
-    ((Head##T*)head)->data[cap] = 0
+    ((Head##T*)head)->data[cap] = 0; \
+    return ((Head##T*)head)->data
 
 const stx_t 
 stx_new (const size_t cap)
@@ -151,15 +178,9 @@ stx_new (const size_t cap)
     void* head;
 
     if (cap < 256) {
-        Head8* head = STX_MALLOC (BLOCK_SZ(8,cap));
-        if (!head) return NULL;
-        INIT (head, cap, 8);
-        return head->data;
+        NEW (head, cap, 8);
     } else {
-        Head64* head = STX_MALLOC (BLOCK_SZ(64,cap));
-        if (!head) return NULL;
-        INIT (head, cap, 64);
-        return head->data;
+        NEW (head, cap, 64);
     }
 }
 
@@ -188,14 +209,20 @@ stx_free (const stx_t s)
 bool
 stx_resize (stx_t *pstx, const size_t newcap)
 {
+    stx_t s = *pstx;
+
+    if (!CHECK(s)) return false;
+
     void* head = headof(*pstx);
+    char type = TYPE(s);
 
-    if (!check(head)) 
-        return false;
-
-    bool resized = resize(&head, newcap);
-
-    *pstx = head->data;
+    bool resized = resize (&head, type, newcap);
+    
+    if (type == TYPE_SHORT) {
+        *pstx = ((Head8*)head)->data;
+    } else {
+        *pstx = ((Head64*)head)->data;
+    }
 
     return resized;
 }
@@ -246,7 +273,7 @@ stx_len (const stx_t s)
 void 
 stx_show (const stx_t s)
 {
-    const Head64* head = HEAD(s);
+    const void* head = headof(s);
 
     if (!check(head)) {
         ERR ("stx_show: invalid header\n");
