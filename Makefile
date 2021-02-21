@@ -10,7 +10,7 @@ test = bin/test
 
 .PHONY: all check clean
 
-all: $(lib) $(unit) $(example) $(test) 
+all: $(lib) $(test)
 
 $(lib): src/stx.c src/stx.h src/util.c
 	$(COMP)

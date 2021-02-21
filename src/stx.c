@@ -17,45 +17,59 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #include "log.h"
 #include "util.c"
 
-#define BLOCK_SZ(type,cap) (sizeof(type) + (cap) + 1)
-#define HEAD(s) ((Long*)((s) ? ((char*)(s) - offsetof(Long,data)) : NULL))
-#define FIELD_ADR(s,name) ((char*)(s) - offsetof(Long,data) + offsetof(Long,name))
-#define FIELD_VAL(s,name) (*FIELD_ADR((s),name))
+
+#define TYPE_SHORT  8
+#define TYPE_LONG   64 
+
+#define BLOCK_SZ(T,cap) (sizeof(Head##T) + (cap) + 1)
+#define HEAD(s,T) ((s) - offsetof(Head##T,data))
+#define FIELD_ADR(s,htype,name) ((char*)(s) - offsetof(htype,data) + offsetof(htype,name))
+#define FIELD_VAL(s,htype,name) (*FIELD_ADR((s),htype,name))
+#define CHECK(s) (s && (((char*)s)[-2] == COOKIE))
 
 #define COOKIE 147
 
-struct Long {   
+struct Head64 {   
     size_t  cap;  
     size_t  len; 
-    uint8_t cookie; 
-    uint8_t type;
-    char    data[]; 
+    char cookie; 
+    char type;
+    char data[]; 
 };
 
-typedef struct Long Long;
+typedef struct Head64 Head64;
 
-struct Short {   
+struct Head8 {   
     uint8_t cap;  
     uint8_t len; 
-    uint8_t cookie; 
-    uint8_t type;
-    char    data[]; 
+    char cookie; 
+    char type;
+    char data[]; 
 };
 
-typedef struct Short Short;
+typedef struct Head8 Head8;
 
 //==== PRIVATE ================================================================
 
+void* headof(const stx_t s)
+{
+    char type = s[-1];
+    int off;
+
+    if (type == TYPE_SHORT) {
+        off = offsetof(Head8, data);
+    } else {
+        off = offsetof(Head64, data);
+    }
+
+    return s - off;
+}
+
 // duck-validate
 static inline bool
-check (const Long* head)
+check (const void* head)
 {
-    return \
-        head                        
-    &&  head->cookie == COOKIE      
-    &&  (intmax_t)head->cap >= 0    // ?
-    &&  (intmax_t)head->len >= 0    // ?
-    &&  head->cap >= head->len;      
+    return head && (((char*)head)[-2] == COOKIE);
 }
 
 
@@ -124,66 +138,49 @@ append_count (void* dst, const char* src, const size_t n)
 
 //==== PUBLIC ================================================================
 
-#define TYPE_LONG 0
-#define TYPE_SHORT 1
-
-static stx_t 
-new_short (const size_t cap)
-{
-    Short* head = STX_MALLOC (BLOCK_SZ(Short,cap));
-
-    if (!head) return NULL;
-    
-    *head = (Short){0}; // sec
-    
-    head->cap = cap;
-    head->cookie = COOKIE;
-    head->type = TYPE_SHORT;
-    head->data[0] = 0;
-    head->data[cap] = 0;
-
-    return head->data;
-}
-
-static stx_t 
-new_long (const size_t cap)
-{
-    Long* head = STX_MALLOC (BLOCK_SZ(Long,cap));
-
-    if (!head) return NULL;
-    
-    *head = (Long){0}; // sec
-    
-    head->cap = cap;
-    head->cookie = COOKIE;
-    head->type = TYPE_LONG;
-    head->data[0] = 0;
-    head->data[cap] = 0;
-
-    return head->data;
-}
-
+#define INIT(head, cap, T) \
+    ((Head##T*)head)->cap = cap; \
+    ((Head##T*)head)->cookie = COOKIE; \
+    ((Head##T*)head)->type = T; \
+    ((Head##T*)head)->data[0] = 0; \
+    ((Head##T*)head)->data[cap] = 0
 
 const stx_t 
 stx_new (const size_t cap)
 {
-    return (cap < 256) ? new_short(cap) : new_long(cap);    
+    void* head;
+
+    if (cap < 256) {
+        Head8* head = STX_MALLOC (BLOCK_SZ(8,cap));
+        if (!head) return NULL;
+        INIT (head, cap, 8);
+        return head->data;
+    } else {
+        Head64* head = STX_MALLOC (BLOCK_SZ(64,cap));
+        if (!head) return NULL;
+        INIT (head, cap, 64);
+        return head->data;
+    }
 }
 
 
 void 
 stx_free (const stx_t s)
 {
-    void* head = HEAD(s);
-
-    if (!check(head)) {
-        #ifdef STX_WARNINGS
-            ERR ("stx_free: invalid header\n");
-        #endif
+    if (!CHECK(s)) {
+        ERR ("stx_free: invalid header\n");
         return;
     }
 
-    *head = (Long){0};
+    char type = s[-1];
+    void* head = headof(s);
+    
+    if (type == TYPE_SHORT) {
+        *(Head8*)head = (Head8){0};
+    } else {
+        *(Head64*)head = (Head64){0};
+    }
+
     STX_FREE(head);
 }
 
@@ -191,7 +188,7 @@ stx_free (const stx_t s)
 bool
 stx_resize (stx_t *pstx, const size_t newcap)
 {
-    void* head = HEAD(*pstx);
+    void* head = headof(*pstx);
 
     if (!check(head)) 
         return false;
@@ -207,7 +204,7 @@ stx_resize (stx_t *pstx, const size_t newcap)
 int 
 stx_append_count (const stx_t dst, const char* src, const size_t n) 
 {
-    void* head = HEAD(dst);
+    void* head = headof(dst);
 
     if (!check(head)) 
         return STX_FAIL;
@@ -218,19 +215,38 @@ stx_append_count (const stx_t dst, const char* src, const size_t n)
 size_t 
 stx_cap (const stx_t s)
 {
-    return check(HEAD(s)) ? FIELD_VAL(s,cap) : 0;
+    size_t ret;
+    char type = s[-1];
+    
+    if (type == TYPE_SHORT) {
+        ret = *((uint8_t*)(s - offsetof(Head8,data) + offsetof(Head8,cap)));
+    } else {
+        ret = *((size_t*)(s - offsetof(Head64,data) + offsetof(Head64,cap)));
+    }
+
+    return ret;
 }
 
 size_t 
 stx_len (const stx_t s)
 {
-    return check(HEAD(s)) ? FIELD_VAL(s,len) : 0;
+    size_t ret;
+    char type = s[-1];
+
+    if (type == TYPE_SHORT) {
+        ret = *((uint8_t*)(s - offsetof(Head8,data) + offsetof(Head8,len)));
+    } else {
+        ret = *((size_t*)(s - offsetof(Head64,data) + offsetof(Head64,len)));
+    }
+
+    return ret;
 }
+
 
 void 
 stx_show (const stx_t s)
 {
-    const Long* head = HEAD(s);
+    const Head64* head = HEAD(s);
 
     if (!check(head)) {
         ERR ("stx_show: invalid header\n");
