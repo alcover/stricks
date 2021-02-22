@@ -17,9 +17,10 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #include "log.h"
 #include "util.c"
 
+typedef unsigned char uchar;
 
-#define TYPE_SHORT  8
-#define TYPE_LONG   64 
+#define TYPE_8  8
+#define TYPE_32 32 
 
 #define BLOCK_SZ(T,cap) (sizeof(Head##T) + (cap) + 1)
 #define HEAD(s,T) ((s) - offsetof(Head##T,data))
@@ -30,44 +31,36 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 
 #define COOKIE 147
 
-// #pragma pack(push)
-// #pragma pack(1)   
-
-struct Head64 {   
-    size_t  cap;  
-    size_t  len; 
-    char cookie; 
-    char type;
-    char data[]; 
-};
-
-typedef struct Head64 Head64;
-
-struct Head8 {   
+typedef struct  {   
     uint8_t cap;  
     uint8_t len; 
-    char cookie; 
-    char type;
-    char data[]; 
-};
+    char    cookie; 
+    uchar   type;
+    char    data[]; 
+} Head8;
 
-typedef struct Head8 Head8;
-
-// #pragma pack(pop)
+typedef struct  {   
+    uint32_t    cap;  
+    uint32_t    len; 
+    char        cookie; 
+    uchar       type;
+    char        data[]; 
+} Head32;
 
 //==== PRIVATE ================================================================
 
-void* headof(const stx_t s)
+void* headof(const stx_t s, uchar* outtype)
 {
     char type = s[-1];
     int off;
 
-    if (type == TYPE_SHORT) {
+    if (type == TYPE_8) {
         off = offsetof(Head8, data);
     } else {
-        off = offsetof(Head64, data);
+        off = offsetof(Head32, data);
     }
 
+    *outtype type;
     return s - off;
 }
 
@@ -81,10 +74,10 @@ check (const void* head)
 static inline size_t
 get_cap (const void* head, char type)
 {
-    if (type == TYPE_SHORT)
+    if (type == TYPE_8)
         return ((Head8*)head)->cap;
     else
-        return ((Head64*)head)->cap;
+        return ((Head32*)head)->cap;
 }
 
 
@@ -106,10 +99,10 @@ resize (void **phead, char type, const size_t newcap)
     if (newcap == get_cap(head,type)) 
         return true;
 
-    if (type == TYPE_SHORT)
+    if (type == TYPE_8)
         tmp = realloc (head, BLOCK_SZ(8,newcap)); 
     else
-        tmp = realloc (head, BLOCK_SZ(64,newcap));    
+        tmp = realloc (head, BLOCK_SZ(32,newcap));    
 
     if (!tmp) {
         ERR ("stx_resize: realloc failed\n");
@@ -123,10 +116,10 @@ resize (void **phead, char type, const size_t newcap)
             LOG ("stx_resize: truncated");
         #endif
 
-        if (type == TYPE_SHORT)
+        if (type == TYPE_8)
             ((Head8*)tmp)->len = newcap;
         else
-            ((Head64*)tmp)->len = newcap;
+            ((Head32*)tmp)->len = newcap;
     }
 
     // set new cap sentinel
@@ -180,7 +173,7 @@ stx_new (const size_t cap)
     if (cap < 256) {
         NEW (head, cap, 8);
     } else {
-        NEW (head, cap, 64);
+        NEW (head, cap, 32);
     }
 }
 
@@ -193,13 +186,13 @@ stx_free (const stx_t s)
         return;
     }
 
-    char type = s[-1];
+    uchar type;
     void* head = headof(s);
     
-    if (type == TYPE_SHORT) {
+    if (type == TYPE_8) {
         *(Head8*)head = (Head8){0};
     } else {
-        *(Head64*)head = (Head64){0};
+        *(Head32*)head = (Head32){0};
     }
 
     STX_FREE(head);
@@ -218,10 +211,10 @@ stx_resize (stx_t *pstx, const size_t newcap)
 
     bool resized = resize (&head, type, newcap);
     
-    if (type == TYPE_SHORT) {
+    if (type == TYPE_8) {
         *pstx = ((Head8*)head)->data;
     } else {
-        *pstx = ((Head64*)head)->data;
+        *pstx = ((Head32*)head)->data;
     }
 
     return resized;
@@ -245,10 +238,10 @@ stx_cap (const stx_t s)
     size_t ret;
     char type = s[-1];
     
-    if (type == TYPE_SHORT) {
+    if (type == TYPE_8) {
         ret = *((uint8_t*)(s - offsetof(Head8,data) + offsetof(Head8,cap)));
     } else {
-        ret = *((size_t*)(s - offsetof(Head64,data) + offsetof(Head64,cap)));
+        ret = *((size_t*)(s - offsetof(Head32,data) + offsetof(Head32,cap)));
     }
 
     return ret;
@@ -260,10 +253,10 @@ stx_len (const stx_t s)
     size_t ret;
     char type = s[-1];
 
-    if (type == TYPE_SHORT) {
+    if (type == TYPE_8) {
         ret = *((uint8_t*)(s - offsetof(Head8,data) + offsetof(Head8,len)));
     } else {
-        ret = *((size_t*)(s - offsetof(Head64,data) + offsetof(Head64,len)));
+        ret = *((size_t*)(s - offsetof(Head32,data) + offsetof(Head32,len)));
     }
 
     return ret;
