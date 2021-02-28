@@ -1,5 +1,5 @@
 CC = gcc
-FLAGS = -std=c11 -Wall -Wno-unused-variable -g -O1
+FLAGS = -std=c11 -Wall -g #-O1
 COMP = $(CC) $(FLAGS) -c $< -o $@
 LINK = $(CC) $(FLAGS) $^ -o $@
 

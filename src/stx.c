@@ -1,9 +1,3 @@
-/*
-Stricks v0.1.0
-Copyright (C) 2021 - Francois Alcover <francois@alcover.fr>
-NO WARRANTY EXPRESSED OR IMPLIED.
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -17,164 +11,60 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #include "log.h"
 #include "util.c"
 
-typedef unsigned char uchar;
+enum Type {TYPE1=1, TYPE4=2};
 
-#define TYPE_8  8
-#define TYPE_32 32 
+#define MAGIC 170 // 0xaa 10101010
+#define TYPE_BITS 2
+#define TYPE_MASK ((1<<TYPE_BITS)-1)
 
-#define BLOCK_SZ(T,cap) (sizeof(Head##T) + (cap) + 1)
-#define HEAD(s,T) ((s) - offsetof(Head##T,data))
-#define FIELD_ADR(s,htype,name) ((char*)(s) - offsetof(htype,data) + offsetof(htype,name))
-#define FIELD_VAL(s,htype,name) (*FIELD_ADR((s),htype,name))
-#define CHECK(s) ((s) && (((char*)(s))[-2] == COOKIE))
-#define TYPE(s) (((char*)(s))[-1])
+#define HEAD(s,T) ((Head##T*)(s - sizeof(Attr) - sizeof(Head##T)))
+#define HEADV(s,T) (*HEAD(s,T))
+#define ATTR(s,name) ((Attr*)((s) - sizeof(Attr)))->name
+#define CHECK(s) (ATTR(s,cookie) == MAGIC)
+#define FLAGS(s) ATTR(s,flags)
+#define TYPE(s) (FLAGS(s) & TYPE_MASK)
+#define DATA(s) ATTR(s,data)
 
-#define COOKIE 147
+typedef struct Head1 {   
+    uint8_t     cap;  
+    uint8_t     len; 
+} Head1;
 
-typedef struct  {   
-    uint8_t cap;  
-    uint8_t len; 
-    char    cookie; 
-    uchar   type;
-    char    data[]; 
-} Head8;
-
-typedef struct  {   
+typedef struct Head4 {   
     uint32_t    cap;  
     uint32_t    len; 
-    char        cookie; 
-    uchar       type;
+} Head4;
+
+typedef struct Attr {   
+    uint8_t     cookie; 
+    uint8_t     flags;
     char        data[]; 
-} Head32;
-
-//==== PRIVATE ================================================================
-
-void* headof(const stx_t s, uchar* outtype)
-{
-    char type = s[-1];
-    int off;
-
-    if (type == TYPE_8) {
-        off = offsetof(Head8, data);
-    } else {
-        off = offsetof(Head32, data);
-    }
-
-    *outtype type;
-    return s - off;
-}
+} Attr;
 
 
-static inline bool
-check (const void* head)
-{
-    return head && (((char*)head)[-2] == COOKIE);
-}
-
-static inline size_t
-get_cap (const void* head, char type)
-{
-    if (type == TYPE_8)
-        return ((Head8*)head)->cap;
-    else
-        return ((Head32*)head)->cap;
-}
-
-
-static bool 
-resize (void **phead, char type, const size_t newcap)
-{    
-    // negative value - abort
-    if ((intmax_t)newcap < 0) {
-        #ifdef STX_WARNINGS
-            ERR("stx_resize: negative value\n");
-        #endif
-        return false;
-    }
-
-
-    void* head = *phead;
-    void* tmp;
-    
-    if (newcap == get_cap(head,type)) 
-        return true;
-
-    if (type == TYPE_8)
-        tmp = realloc (head, BLOCK_SZ(8,newcap)); 
-    else
-        tmp = realloc (head, BLOCK_SZ(32,newcap));    
-
-    if (!tmp) {
-        ERR ("stx_resize: realloc failed\n");
-        return false;
-    }
-    
-    // truncated
-    if (newcap < tmp->len) {
-
-        #ifdef STX_WARNINGS
-            LOG ("stx_resize: truncated");
-        #endif
-
-        if (type == TYPE_8)
-            ((Head8*)tmp)->len = newcap;
-        else
-            ((Head32*)tmp)->len = newcap;
-    }
-
-    // set new cap sentinel
-    tmp->data[newcap] = 0;
-    // update cap
-    tmp->cap = newcap;
-    *phead = tmp;
-    
-    return true;
-}
-
-
-static int 
-append_count (void* dst, const char* src, const size_t n) 
-{
-    if (!src) 
-        return STX_FAIL;
-
-    const size_t dst_len = dst->len;
-    char* dst_end = dst->data + dst_len;
-    const size_t inc_len = n ? strnlen(src,n) : strlen(src);
-
-    // Would truncate - return total needed capacity
-    if (inc_len > dst->cap - dst_len)
-        return -(dst_len + inc_len);
-    
-    memcpy (dst_end, src, inc_len);
-    *(dst_end + inc_len) = 0;
-    dst->len += inc_len;
-
-    return inc_len;            
-} 
-
-//==== PUBLIC ================================================================
-
-#define NEW(head, cap, T) \
-    void* head = STX_MALLOC (BLOCK_SZ(T,cap)); \
-    if (!head) return NULL; \
-    ((Head##T*)head)->cap = cap; \
-    ((Head##T*)head)->cookie = COOKIE; \
-    ((Head##T*)head)->type = T; \
-    ((Head##T*)head)->data[0] = 0; \
-    ((Head##T*)head)->data[cap] = 0; \
-    return ((Head##T*)head)->data
-
-const stx_t 
+stx_t 
 stx_new (const size_t cap)
 {
-    void* head;
+    Attr* attr;
+
+    #define INIT(T) \
+    Head##T* head = STX_MALLOC(sizeof(*head) + sizeof(Attr) + cap+1); \
+    if (!head) return NULL;\
+    *head = (Head##T){cap,0}; \
+    attr = (Attr*)((char*)head + sizeof(*head)); \
+    *attr = (Attr){MAGIC,TYPE##T};
 
     if (cap < 256) {
-        NEW (head, cap, 8);
+        INIT(1); 
     } else {
-        NEW (head, cap, 32);
+        INIT(4); 
     }
+    #undef INIT
+
+    attr->data[0] = 0; 
+    attr->data[cap] = 0; 
+    
+    return attr->data;
 }
 
 
@@ -186,95 +76,119 @@ stx_free (const stx_t s)
         return;
     }
 
-    uchar type;
-    void* head = headof(s);
+    void* head = NULL;
+
+    int type = TYPE(s);
     
-    if (type == TYPE_8) {
-        *(Head8*)head = (Head8){0};
-    } else {
-        *(Head32*)head = (Head32){0};
+    switch(type){
+        case TYPE1: head = HEAD(s,1); *((Head1*)head) = (Head1){0}; break;
+        case TYPE4: head = HEAD(s,4); *((Head4*)head) = (Head4){0}; break;
     }
 
     STX_FREE(head);
 }
 
-
-bool
-stx_resize (stx_t *pstx, const size_t newcap)
-{
-    stx_t s = *pstx;
-
-    if (!CHECK(s)) return false;
-
-    void* head = headof(*pstx);
-    char type = TYPE(s);
-
-    bool resized = resize (&head, type, newcap);
-    
-    if (type == TYPE_8) {
-        *pstx = ((Head8*)head)->data;
-    } else {
-        *pstx = ((Head32*)head)->data;
-    }
-
-    return resized;
-}
-
-
-int 
-stx_append_count (const stx_t dst, const char* src, const size_t n) 
-{
-    void* head = headof(dst);
-
-    if (!check(head)) 
-        return STX_FAIL;
-
-    return append_count (head, src, n);            
-}
+#define ACCESSOR(s,m) \
+if (!CHECK(s)) return 0; \
+switch(TYPE(s)){ \
+    case TYPE1: return HEAD(s,1)->m; \
+    case TYPE4: return HEAD(s,4)->m; \
+} \
+return 0
 
 size_t 
 stx_cap (const stx_t s)
 {
-    size_t ret;
-    char type = s[-1];
-    
-    if (type == TYPE_8) {
-        ret = *((uint8_t*)(s - offsetof(Head8,data) + offsetof(Head8,cap)));
-    } else {
-        ret = *((size_t*)(s - offsetof(Head32,data) + offsetof(Head32,cap)));
-    }
-
-    return ret;
+    ACCESSOR(s,cap);
 }
 
 size_t 
 stx_len (const stx_t s)
 {
-    size_t ret;
-    char type = s[-1];
-
-    if (type == TYPE_8) {
-        ret = *((uint8_t*)(s - offsetof(Head8,data) + offsetof(Head8,len)));
-    } else {
-        ret = *((size_t*)(s - offsetof(Head32,data) + offsetof(Head32,len)));
-    }
-
-    return ret;
+    ACCESSOR(s,len);
 }
 
 
 void 
 stx_show (const stx_t s)
 {
-    const void* head = headof(s);
-
-    if (!check(head)) {
+    if (!CHECK(s)) {
         ERR ("stx_show: invalid header\n");
         return;
     }
 
-    printf ("cap:%zu len:%zu data:'%s'\n",
-        (size_t)head->cap, (size_t)head->len, head->data);
+    int type = TYPE(s);
+
+    #define SHOW_FMT "cap:%zu len:%zu cookie:%d flags:%d data:'%s'\n"
+    #define SHOW_ARGS \
+    (size_t)((head)->cap), \
+    (size_t)((head)->len), \
+    ATTR(s,cookie), \
+    ATTR(s,flags), \
+    ATTR(s,data)
+
+    switch(type){
+        case TYPE1: {
+            Head1* head = HEAD(s,1);
+            printf (SHOW_FMT, SHOW_ARGS);
+            break;
+        }
+        case TYPE4: {
+            Head4* head = HEAD(s,4);
+            printf (SHOW_FMT, SHOW_ARGS);
+            break;
+        }
+        default: ERR("stx_show: unknown type\n");
+    }
 
     fflush(stdout);
+}
+
+int 
+stx_append_count (const stx_t dst, const char* src, const size_t n) 
+{
+    if (!src) 
+        return STX_FAIL;
+
+    const int type = TYPE(dst);
+    char* dst_data = DATA(dst);
+    size_t dst_cap, dst_len;
+    
+    switch(type) {
+        case TYPE1: {
+            Head1 dsthv = HEADV(dst,1);
+            dst_cap = dsthv.cap;
+            dst_len = dsthv.len;
+            break;
+        }
+        case TYPE4: {
+            Head4 dsthv = HEADV(dst,4);
+            dst_cap = dsthv.cap;
+            dst_len = dsthv.len;
+            break;
+        }
+    }
+
+    char* dst_end = dst_data + dst_len;
+    const size_t inc_len = n ? strnlen(src,n) : strlen(src);
+
+    // Would truncate - return total needed capacity
+    if (inc_len > dst_cap - dst_len)
+        return -(dst_len + inc_len);
+    
+    memcpy (dst_end, src, inc_len);
+    *(dst_end + inc_len) = 0;
+
+    switch(type) {
+        case TYPE1: {
+            HEAD(dst,1)->len += inc_len;
+            break;
+        }
+        case TYPE4: {
+            HEAD(dst,4)->len += inc_len;
+            break;
+        }
+    }
+
+    return inc_len;           
 }

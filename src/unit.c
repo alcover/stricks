@@ -1,6 +1,4 @@
-/*
-    Unit tests of public methods
-*/
+// Unit tests of public methods
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,7 +8,6 @@
 #include <errno.h>
 #include <stdarg.h>
 
-#define STX_SHORT_NAMES
 #include "stx.h"
 #include "log.h"
 
@@ -27,7 +24,6 @@ int main()
     strcat(foobar, foo);
     strcat(foobar, bar);
     const size_t foobarlen = strlen(foobar);
-
 
     #define ASSERT_PROPS(s, cap, len, data)    \
     {                                                   \
