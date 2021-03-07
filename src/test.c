@@ -9,21 +9,43 @@
 #include "stx.h"
 #include "log.h"
 
+#define X16(s) #s #s #s #s #s #s #s #s #s #s #s #s #s #s #s #s 
+#define BIG X16(aaaabbbbccccdddd)
+#define biglen 256
+const char* big = BIG;
+const char* huge = BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG;
+
 int main() {
+// {
+// 	stx_t s = stx_new(6);
+// 	stx_show(s);
+// 	stx_append_count(s, "foo", 0);
+// 	stx_show(s); 
+// 	printf("%zu %zu\n", stx_cap(s), stx_len(s));
+// }
+
+// {
+// 	stx_t s = stx_new(300);
+// 	stx_show(s);
+// 	stx_append_count_alloc(&s, "foo", 0);
+// 	stx_show(s); 
+// 	printf("%zu %zu\n", stx_cap(s), stx_len(s));
+// }
 {
-	stx_t s = stx_new(6);
+	stx_t s = stx_from("foo");
 	stx_show(s);
-	stx_append_count(s, "foo", 0);
+	stx_resize(&s, 300);
+	stx_show(s); 
+	printf("%zu %zu\n", stx_cap(s), stx_len(s));
+}
+{
+	stx_t s = stx_new(3);
+	stx_show(s);
+	stx_append_count_alloc(&s, big, 0);
 	stx_show(s); 
 	printf("%zu %zu\n", stx_cap(s), stx_len(s));
 }
 
-{
-	stx_t s = stx_new(257);
-	stx_show(s);
-	stx_append_count(s, "foo", 0);
-	stx_show(s); 
-	printf("%zu %zu\n", stx_cap(s), stx_len(s));
-}
+
     return 0;
 }

@@ -1,9 +1,17 @@
+/*
+Stricks v0.2.0
+Copyright (C) 2021 - Francois Alcover <francois@alcover.fr>
+NO WARRANTY EXPRESSED OR IMPLIED.
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <string.h>
+#include <strings.h>
+#include <math.h>
 #include <assert.h>
 #include <errno.h>
 
@@ -11,19 +19,7 @@
 #include "log.h"
 #include "util.c"
 
-enum Type {TYPE1=1, TYPE4=2};
-
-#define MAGIC 170 // 0xaa 10101010
-#define TYPE_BITS 2
-#define TYPE_MASK ((1<<TYPE_BITS)-1)
-
-#define HEAD(s,T) ((Head##T*)(s - sizeof(Attr) - sizeof(Head##T)))
-#define HEADV(s,T) (*HEAD(s,T))
-#define ATTR(s,name) ((Attr*)((s) - sizeof(Attr)))->name
-#define CHECK(s) (ATTR(s,cookie) == MAGIC)
-#define FLAGS(s) ATTR(s,flags)
-#define TYPE(s) (FLAGS(s) & TYPE_MASK)
-#define DATA(s) ATTR(s,data)
+typedef unsigned char uchar;
 
 typedef struct Head1 {   
     uint8_t     cap;  
@@ -35,106 +31,281 @@ typedef struct Head4 {
     uint32_t    len; 
 } Head4;
 
+typedef struct HeadS {   
+    size_t    cap;  
+    size_t    len; 
+} HeadS;
+
 typedef struct Attr {   
-    uint8_t     cookie; 
-    uint8_t     flags;
-    char        data[]; 
+    uchar   cookie; 
+    uchar   flags;
+    uchar    data[]; 
 } Attr;
 
+typedef enum Type {
+    TYPE1 = (int)log2(sizeof(Head1)), 
+    TYPE4 = (int)log2(sizeof(Head4))
+} Type;
+
+#define ISPOW2(n) (n==2||n==4||n==8||n==16||n==32)
+static_assert (ISPOW2(sizeof(Head1)), "bad Head1");
+static_assert (ISPOW2(sizeof(Head4)), "bad Head4");
+static_assert ((1<<TYPE1) == sizeof(Head1), "bad TYPE1");
+static_assert ((1<<TYPE4) == sizeof(Head4), "bad TYPE4");
+
+#define MAGIC 170 // 0xaa 10101010
+#define TYPE_BITS 2
+#define TYPE_MASK ((1<<TYPE_BITS)-1)
+
+#define COOKIE(s) (((uchar*)(s))[-2])
+#define FLAGS(s)  (((uchar*)(s))[-1])
+#define TYPE(s) (FLAGS(s) & TYPE_MASK)
+#define HEADSZ(type) (1<<type)
+#define MEMSZ(type,cap) (HEADSZ(type) + sizeof(Attr) + cap + 1)
+#define CHECK(s) ((s) && COOKIE(s) == MAGIC)
+#define HEAD(s) ((char*)(s) - sizeof(Attr) - HEADSZ(TYPE(s)))
+#define ATTR(head,type) ((Attr*)((char*)(head) + HEADSZ(type)))
+#define DATA(head,type) ((char*)head + HEADSZ(type) + sizeof(Attr))
+
+#define SETPROP(head, type, prop, val) \
+    switch(type) { \
+        case TYPE1: ((Head1*)head)->prop = val; break; \
+        case TYPE4: ((Head4*)head)->prop = val; break; \
+    } 
+
+//==== PRIVATE ===============================================================
+
+static inline void
+getdims (const void *head, const Type type, size_t *cap, size_t *len)
+{
+    switch(type) {
+        case TYPE4: 
+            *cap = ((Head4*)head)->cap;
+            *len = ((Head4*)head)->len;
+            break;
+        case TYPE1: 
+            *cap = ((Head1*)head)->cap;
+            *len = ((Head1*)head)->len;
+            break;
+        default: 
+            *cap = 0;
+            *len = 0;
+    }
+}
+
+
+static bool 
+resize (stx_t *ps, const size_t newcap)
+{    
+    stx_t s = *ps;
+    if (!CHECK(s)) return false;
+
+    void* head = HEAD(s);
+
+    Type type = TYPE(s);
+    size_t cap, len;
+
+    getdims(head, type, &cap, &len);
+
+    if (newcap == cap) return true;
+    
+    const Type newtype = (newcap >= 256) ? TYPE4 : TYPE1;
+    const bool sametype = (newtype == type);
+   
+    void* newhead;
+
+    if (sametype)
+        newhead = realloc (head, MEMSZ(type, newcap));
+    else {
+        newhead = STX_MALLOC (MEMSZ(newtype, newcap));
+    }
+
+    if (!newhead) {
+        ERR ("stx_resize: realloc failed\n");
+        return false;
+    }
+    
+    stx_t news = DATA(newhead, newtype);
+    
+    if (!sametype) {
+        memcpy(news, s, len+1); //?
+        // reput len
+        SETPROP(newhead, newtype, len, len);
+        // reput cookie
+        COOKIE(news) = MAGIC;
+        // update flags
+        FLAGS(news) = (FLAGS(news) & ~TYPE_MASK) | newtype;
+    }
+    
+    // truncated
+    if (newcap < len) {
+        #ifdef STX_WARNINGS
+            LOG("stx_resize: truncated");
+        #endif
+        SETPROP(newhead, newtype, len, newcap);
+    }
+
+    // update cap
+    SETPROP(newhead, newtype, cap, newcap); 
+    // update cap sentinel
+    news[newcap] = 0;
+    
+    *ps = news;
+    return true;
+}
+
+//==== PUBLIC ================================================================
 
 stx_t 
 stx_new (const size_t cap)
 {
-    Attr* attr;
+    const Type type = (cap >= 256) ? TYPE4 : TYPE1;
 
-    #define INIT(T) \
-    Head##T* head = STX_MALLOC(sizeof(*head) + sizeof(Attr) + cap+1); \
-    if (!head) return NULL;\
-    *head = (Head##T){cap,0}; \
-    attr = (Attr*)((char*)head + sizeof(*head)); \
-    *attr = (Attr){MAGIC,TYPE##T};
+    void* head = STX_MALLOC (MEMSZ(type, cap));
+    if (!head) return NULL;
 
-    if (cap < 256) {
-        INIT(1); 
-    } else {
-        INIT(4); 
-    }
-    #undef INIT
+    SETPROP(head, type, cap, cap);
+    SETPROP(head, type, len, 0);
 
+    Attr* attr = ATTR(head, type);
+    attr->cookie = MAGIC;
+    attr->flags = type;
     attr->data[0] = 0; 
     attr->data[cap] = 0; 
     
-    return attr->data;
+    return (char*)(attr->data);
 }
 
+const stx_t
+stx_from (const char* src)
+{
+    const size_t len = strlen(src);
+    const stx_t ret = stx_new(len);
+
+    stx_append_count (ret, src, len);
+
+    return ret;
+}
 
 void 
 stx_free (const stx_t s)
 {
-    if (!CHECK(s)) {
-        ERR ("stx_free: invalid header\n");
-        return;
-    }
+    if (!CHECK(s)) return;
 
-    void* head = NULL;
-
-    int type = TYPE(s);
+    char* head = HEAD(s);
     
-    switch(type){
-        case TYPE1: head = HEAD(s,1); *((Head1*)head) = (Head1){0}; break;
-        case TYPE4: head = HEAD(s,4); *((Head4*)head) = (Head4){0}; break;
+    switch(TYPE(s)) {
+        case TYPE4: bzero(head, sizeof(Head4) + sizeof(Attr)); break;
+        case TYPE1: bzero(head, sizeof(Head1) + sizeof(Attr)); break;
     }
 
     STX_FREE(head);
 }
 
-#define ACCESSOR(s,m) \
+#define ACCESS(s, prop) \
 if (!CHECK(s)) return 0; \
+void* head = HEAD(s); \
 switch(TYPE(s)){ \
-    case TYPE1: return HEAD(s,1)->m; \
-    case TYPE4: return HEAD(s,4)->m; \
-} \
-return 0
-
-size_t 
-stx_cap (const stx_t s)
-{
-    ACCESSOR(s,cap);
+    case TYPE1: return ((Head1*)head)->prop; \
+    case TYPE4: return ((Head4*)head)->prop; \
+    default: return 0; \
 }
 
 size_t 
-stx_len (const stx_t s)
+stx_cap (const stx_t s) {ACCESS(s,cap);}
+
+size_t 
+stx_len (const stx_t s) {ACCESS(s,len);}
+
+
+int 
+stx_append_count (stx_t s, const char* src, const size_t n) 
 {
-    ACCESSOR(s,len);
+    if (!CHECK(s)||!src) return STX_FAIL;
+
+    void* head = HEAD(s);
+    Type type = TYPE(s);
+    size_t cap, len;
+    
+    getdims(head, type, &cap, &len);
+
+    const size_t inc = n ? strnlen(src,n) : strlen(src);
+    const size_t totlen = len + inc;
+
+    if (totlen > cap) {  
+        // Would truncate, return needed capacity
+        return -totlen;
+    }
+
+    char* end = s + len;
+    memcpy (end, src, inc);
+    end[inc] = 0;
+    SETPROP(head, type, len, totlen);
+
+    return inc;        
+}
+
+
+size_t 
+stx_append_count_alloc (stx_t *ps, const char *src, const size_t n)
+{
+    stx_t s = *ps;
+
+    if (!CHECK(s)||!src) return STX_FAIL;
+    
+    void* head = HEAD(s);
+    Type type = TYPE(s);
+    size_t cap, len;
+
+    getdims(head, type, &cap, &len);
+
+    const size_t inc = n ? strnlen(src,n) : strlen(src);
+    const size_t totlen = len + inc;
+
+    if (totlen > cap) {
+        if (!resize(ps, totlen*2)) {
+            ERR("resize failed");
+            return STX_FAIL;
+        }
+        s = *ps;
+        head = HEAD(s);
+    }
+    
+    char* end = s + len;
+    memcpy (end, src, inc);
+    end[inc] = 0;
+    SETPROP(head, type, len, totlen);        
+
+    return inc;
+}
+
+
+bool
+stx_resize (stx_t *ps, const size_t newcap)
+{
+    return resize(ps, newcap);
 }
 
 
 void 
 stx_show (const stx_t s)
 {
-    if (!CHECK(s)) {
-        ERR ("stx_show: invalid header\n");
-        return;
-    }
+    if (!CHECK(s)) return;
 
+    void* head = HEAD(s);
     int type = TYPE(s);
 
     #define SHOW_FMT "cap:%zu len:%zu cookie:%d flags:%d data:'%s'\n"
-    #define SHOW_ARGS \
-    (size_t)((head)->cap), \
-    (size_t)((head)->len), \
-    ATTR(s,cookie), \
-    ATTR(s,flags), \
-    ATTR(s,data)
+    #define SHOW_ARGS (size_t)(h->cap), (size_t)(h->len), (uchar)s[-2], (uchar)s[-1], s
 
     switch(type){
-        case TYPE1: {
-            Head1* head = HEAD(s,1);
+        case TYPE4: {
+            Head4* h = (Head4*)head;
             printf (SHOW_FMT, SHOW_ARGS);
             break;
         }
-        case TYPE4: {
-            Head4* head = HEAD(s,4);
+        case TYPE1: {
+            Head1* h = (Head1*)head;
             printf (SHOW_FMT, SHOW_ARGS);
             break;
         }
@@ -142,53 +313,4 @@ stx_show (const stx_t s)
     }
 
     fflush(stdout);
-}
-
-int 
-stx_append_count (const stx_t dst, const char* src, const size_t n) 
-{
-    if (!src) 
-        return STX_FAIL;
-
-    const int type = TYPE(dst);
-    char* dst_data = DATA(dst);
-    size_t dst_cap, dst_len;
-    
-    switch(type) {
-        case TYPE1: {
-            Head1 dsthv = HEADV(dst,1);
-            dst_cap = dsthv.cap;
-            dst_len = dsthv.len;
-            break;
-        }
-        case TYPE4: {
-            Head4 dsthv = HEADV(dst,4);
-            dst_cap = dsthv.cap;
-            dst_len = dsthv.len;
-            break;
-        }
-    }
-
-    char* dst_end = dst_data + dst_len;
-    const size_t inc_len = n ? strnlen(src,n) : strlen(src);
-
-    // Would truncate - return total needed capacity
-    if (inc_len > dst_cap - dst_len)
-        return -(dst_len + inc_len);
-    
-    memcpy (dst_end, src, inc_len);
-    *(dst_end + inc_len) = 0;
-
-    switch(type) {
-        case TYPE1: {
-            HEAD(dst,1)->len += inc_len;
-            break;
-        }
-        case TYPE4: {
-            HEAD(dst,4)->len += inc_len;
-            break;
-        }
-    }
-
-    return inc_len;           
 }
