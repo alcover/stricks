@@ -68,44 +68,28 @@ static_assert ((1<<TYPE4) == sizeof(Head4), "bad TYPE4");
 #define DATA(head,type) ((char*)head + HEADSZ(type) + sizeof(Attr))
 
 #define SETPROP(head, type, prop, val) \
-    switch(type) { \
-        case TYPE1: ((Head1*)head)->prop = val; break; \
-        case TYPE4: ((Head4*)head)->prop = val; break; \
-    } 
+switch(type) { \
+    case TYPE1: ((Head1*)head)->prop = val; break; \
+    case TYPE4: ((Head4*)head)->prop = val; break; \
+} 
+
+#define GETPROP(head, type, prop) \
+((type == TYPE4) ? ((Head4*)head)->prop : ((Head1*)head)->prop)
 
 //==== PRIVATE ===============================================================
-
-static inline void
-getdims (const void *head, const Type type, size_t *cap, size_t *len)
-{
-    switch(type) {
-        case TYPE4: 
-            *cap = ((Head4*)head)->cap;
-            *len = ((Head4*)head)->len;
-            break;
-        case TYPE1: 
-            *cap = ((Head1*)head)->cap;
-            *len = ((Head1*)head)->len;
-            break;
-        default: 
-            *cap = 0;
-            *len = 0;
-    }
-}
 
 
 static bool 
 resize (stx_t *ps, const size_t newcap)
 {    
     stx_t s = *ps;
+
     if (!CHECK(s)) return false;
 
     void* head = HEAD(s);
-
     Type type = TYPE(s);
-    size_t cap, len;
-
-    getdims(head, type, &cap, &len);
+    const size_t cap = GETPROP(head, type, cap);
+    const size_t len = GETPROP(head, type, len);
 
     if (newcap == cap) return true;
     
@@ -218,16 +202,48 @@ size_t
 stx_len (const stx_t s) {ACCESS(s,len);}
 
 
+// int 
+// append (void* dst, const char* src, const size_t n, bool alloc, bool strict) 
+// {
+//     stx_t s = NULL;
+//     stx_t *ps = NULL;
+    
+//     if (alloc) s = (stx_t) dst;
+
+
+//     if (!CHECK(s)||!src) return STX_FAIL;
+
+//     void* head = HEAD(s);
+//     Type type = TYPE(s);
+//     size_t cap, len;
+    
+//     getdims(head, type, &cap, &len);
+
+//     const size_t inc = n ? strnlen(src,n) : strlen(src);
+//     const size_t totlen = len + inc;
+
+//     if (totlen > cap) {  
+//         // Would truncate, return needed capacity
+//         return -totlen;
+//     }
+
+//     char* end = s + len;
+//     memcpy (end, src, inc);
+//     end[inc] = 0;
+//     SETPROP(head, type, len, totlen);
+
+//     return inc;        
+// }
+
 int 
 stx_append_count (stx_t s, const char* src, const size_t n) 
 {
     if (!CHECK(s)||!src) return STX_FAIL;
 
-    void* head = HEAD(s);
-    Type type = TYPE(s);
-    size_t cap, len;
-    
-    getdims(head, type, &cap, &len);
+    const void* head = HEAD(s);
+    const Type type = TYPE(s);
+    const size_t cap = GETPROP(head, type, cap);
+    const size_t len = GETPROP(head, type, len);
 
     const size_t inc = n ? strnlen(src,n) : strlen(src);
     const size_t totlen = len + inc;
@@ -253,12 +269,11 @@ stx_append_count_alloc (stx_t *ps, const char *src, const size_t n)
 
     if (!CHECK(s)||!src) return STX_FAIL;
     
-    void* head = HEAD(s);
-    Type type = TYPE(s);
-    size_t cap, len;
-
-    getdims(head, type, &cap, &len);
-
+    const void* head = HEAD(s);
+    const Type type = TYPE(s);
+    const size_t cap = GETPROP(head, type, cap);
+    const size_t len = GETPROP(head, type, len);
+    
     const size_t inc = n ? strnlen(src,n) : strlen(src);
     const size_t totlen = len + inc;
 
