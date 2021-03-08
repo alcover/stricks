@@ -31,49 +31,24 @@ const size_t foobarlen = 6;
 static_assert(strlen(BIG)==biglen, "biglen != 256");
 const char* big = BIG;
 
-void new() {
+void new() 
+{
     const int cap = 100;
     stx_t s = stx_new(cap);
     ASSERT_PROPS (s, cap, 0, ""); 
     stx_free(s);
 }
 
-void from() {
+void from() 
+{
     stx_t s = stx_from(foo);
     ASSERT_PROPS (s, foolen, foolen, foo); 
     stx_free(s);
 }
 
-void free_() {
-    stx_t s = stx_new(3); //stx_from(foo);
-    stx_free(s);
-    // double free
-    stx_free(s);
-    // use after free
-    assert (!stx_cap(s));
-    assert (!stx_len(s));
-    // assert (!stx_spc(s));
-    // assert (!stx_resize (&s,10));
-    // assert (!stx_dup(s));
-    assert (STX_FAIL == stx_append (s, bar));
-    // assert (STX_FAIL == stx_append_alloc (&s, bar));
-    // assert (STX_FAIL == stx_append_format (s, "%s", bar));
-    assert (STX_FAIL == stx_append_count (s, bar, 3));
-    // assert (STX_FAIL == stx_append_count_alloc (&s, bar, 3));
-}
 
-// void reset() {
-//     const int cap = 100;
-//     stx_t s = stx_new(cap);
-//     stx_append (s, foo);
-//     stx_reset(s);
-//     ASSERT_PROPS (s, cap, 0, ""); 
-//     stx_free(s);
-// }
-
-
-void append() {
-
+void append()
+{
     #define APPEND_INIT(cap, src, count, exprc, explen, expdata)    \
     {                                                       \
         stx_t s = stx_new(cap);                            \
@@ -138,8 +113,8 @@ void append() {
 
 
 
-void append_alloc() {
-
+void append_alloc()
+{
     #define APPENDA_INIT(cap, src, count, exprc, expdata) { \
         stx_t s = stx_new(cap); \
         int rc = stx_append_count_alloc (&s, src, count); \
@@ -169,8 +144,107 @@ void append_alloc() {
     APPENDA_INIT (foolen  , foo, foolen+1, foolen, foo);
     APPENDA_INIT (foolen+1, foo, foolen+1, foolen, foo);
     APPENDA_INIT (foolen-1, foo, foolen+1, foolen, foo);
-
 }
+
+
+void append_fmt()
+{
+    #define APPENDF_INIT(cap, fmt, src, exprc, explen, expdata)    \
+    {                                                       \
+        stx_t s = stx_new(cap);                            \
+        int rc = stx_append_format (s, fmt, src);                 \
+        assert (rc == exprc);                               \
+        ASSERT_PROPS (s, cap, explen, expdata); \
+        stx_free(s);                                        \
+    }
+
+    #define APPENDF_INIT2(cap, fmt, src1, src2, exprc, explen, expdata)    \
+    {                                                       \
+        stx_t s = stx_new(cap);                            \
+        int rc = stx_append_format (s, fmt, src1, src2);                 \
+        assert (rc == exprc);                               \
+        ASSERT_PROPS (s, cap, explen, expdata); \
+        stx_free(s);                                        \
+    }
+
+    APPENDF_INIT (foolen,   "%s", foo,  foolen,  foolen, foo);
+    APPENDF_INIT (foolen+1, "%s", foo,  foolen,  foolen, foo);
+    APPENDF_INIT (foolen-1, "%s", foo,  -foolen, 0,      "");
+
+    APPENDF_INIT2 (foobarlen,   "%s%s", foo, bar, foobarlen,  foobarlen,    foobar);
+    APPENDF_INIT2 (foobarlen+1, "%s%s", foo, bar, foobarlen,  foobarlen,    foobar);
+    APPENDF_INIT2 (foobarlen-1, "%s%s", foo, bar, -foobarlen, 0,            "");
+}
+
+void dup() 
+{
+    stx_t s = stx_new(foolen+1);
+    stx_append (s, foo);
+    stx_t dup = stx_dup(s);
+    ASSERT_PROPS (dup, foolen, foolen, foo);
+    stx_free(s);
+}
+
+
+void free_() 
+{
+    stx_t s = stx_new(3); //stx_from(foo);
+    stx_free(s);
+    // double free
+    stx_free(s);
+    // use after free
+    assert (!stx_cap(s));
+    assert (!stx_len(s));
+    assert (!stx_spc(s));
+    assert (!stx_resize (&s,10));
+    assert (!stx_dup(s));
+    assert (STX_FAIL == stx_append (s, bar));
+    assert (STX_FAIL == stx_append_alloc (&s, bar));
+    assert (STX_FAIL == stx_append_format (s, "%s", bar));
+    assert (STX_FAIL == stx_append_count (s, bar, 3));
+    assert (STX_FAIL == stx_append_count_alloc (&s, bar, 3));
+}
+
+void reset()
+{
+    const int cap = 100;
+    stx_t s = stx_new(cap);
+    stx_append (s, foo);
+    stx_reset(s);
+    ASSERT_PROPS (s, cap, 0, ""); 
+    stx_free(s);
+}
+
+void check()
+{
+    stx_t s = stx_new(3);
+    assert(stx_check(s));
+
+    stx_append (s, foo);
+    assert(stx_check(s));
+
+    s[-2] = 0; 
+    assert(!stx_check(s));
+
+    s = stx_new(3);
+    stx_free(s);
+    assert(!stx_check(s));
+}
+
+void equal()
+{
+    stx_t a = stx_new(3);
+    stx_t b = stx_new(4);
+    assert(stx_equal(a,b));
+
+    stx_append (a, foo);
+    stx_append (b, foo);
+    assert(stx_equal(a,b));
+
+    stx_append (b, "o");
+    assert(!stx_equal(a,b));
+}
+//=======================================================================================
 
 int main()
 {
@@ -178,7 +252,12 @@ int main()
     from();
     append();
     append_alloc();
+    append_fmt();
+    dup();
+    reset();
+    check();
     free_();
+    equal();
 
     printf ("unit tests OK\n");
     return 0;

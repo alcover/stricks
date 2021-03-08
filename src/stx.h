@@ -30,10 +30,10 @@ const stx_t	stx_from (const char* src);
 const stx_t stx_dup (const stx_t src);
 void stx_free (const stx_t s);
 void stx_reset (const stx_t s);
-void stx_show (const stx_t s); 
 bool stx_resize (stx_t *pstx, const size_t newcap);
 bool stx_check (const stx_t s);
 bool stx_equal (const stx_t a, const stx_t b);
+void stx_show (const stx_t s); 
 
 size_t stx_cap (const stx_t s); // Capacity accessor
 size_t stx_len (const stx_t s); // Length accessor

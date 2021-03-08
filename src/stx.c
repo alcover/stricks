@@ -76,6 +76,10 @@ switch(type) { \
 #define GETPROP(head, type, prop) \
 ((type == TYPE4) ? ((Head4*)head)->prop : ((Head1*)head)->prop)
 
+#define GETCAP(head, type) \
+((type == TYPE4) ? (((Head4*)head)->cap - ((Head4*)head)->len) \
+                 : (((Head1*)head)->cap - ((Head1*)head)->len))
+
 static intmax_t 
 append (void* dst, const char* src, const size_t n, bool alloc/*, bool strict*/);
 static bool 
@@ -115,6 +119,44 @@ stx_from (const char* src)
     return ret;
 }
 
+static stx_t
+dup (const stx_t s)
+{
+    const void* head = HEAD(s);
+    const Type type = TYPE(s);
+    const size_t len = GETPROP(head, type, len);
+    const size_t sz = MEMSZ(type,len);
+    void* new_head = malloc(sz);
+
+    if (!new_head) return NULL;
+
+    memcpy (new_head, head, sz);
+    SETPROP(new_head, type, cap, len);
+    stx_t ret = DATA(new_head, type);
+    ret[len] = 0; // to be sure
+
+    return ret;
+}
+
+
+stx_t
+stx_dup (const stx_t s)
+{
+    return CHECK(s) ? dup(s) : NULL;
+}
+
+void 
+stx_reset (const stx_t s)
+{
+    if (!CHECK(s)) return;
+
+    const void* head = HEAD(s);
+    const Type type = TYPE(s);
+
+    SETPROP(head, type, len, 0);
+    *s = 0;
+}
+
 void 
 stx_free (const stx_t s)
 {
@@ -145,6 +187,20 @@ stx_cap (const stx_t s) {ACCESS(s,cap);}
 size_t 
 stx_len (const stx_t s) {ACCESS(s,len);}
 
+size_t 
+stx_spc (const stx_t s)
+{
+    if (!CHECK(s)) return 0;
+
+    void* head = HEAD(s);
+    
+    switch(TYPE(s)) {
+        case TYPE4: return ((Head4*)head)->cap - ((Head4*)head)->len;
+        case TYPE1: return ((Head1*)head)->cap - ((Head1*)head)->len;
+        default: return 0;
+    }
+}
+
 intmax_t 
 stx_append (stx_t dst, const char* src) 
 {
@@ -169,12 +225,80 @@ stx_append_count_alloc (stx_t* dst, const char* src, const size_t n)
     return append((void*)dst, src, n, true);        
 }
 
+
+
+static int 
+append_format (stx_t dst, const char* fmt, va_list args)
+{
+    const void* head = HEAD(dst);
+    const Type type = TYPE(dst);
+    const size_t len = GETPROP(head, type, len);
+    const size_t spc = GETCAP(head, type);
+
+    if (!spc) return STX_FAIL;
+
+    char* end = dst + len;
+
+    errno = 0;
+    const size_t src_len = vsnprintf(end, spc+1, fmt, args);
+     
+    // Error
+    if (src_len < 0) {
+        perror("stx_append_format");
+        *end = 0; // undo
+        return STX_FAIL;
+    }
+
+    // Truncation
+    if (src_len > spc) {
+        *end = 0; // undo
+        return -(len + src_len);
+    } 
+
+    // Update length
+    SETPROP(head, type, len, src_len);
+
+    return src_len;
+}
+
+
+int 
+stx_append_format (const stx_t dst, const char* fmt, ...) 
+{
+    if (!CHECK(dst)) return 0;
+
+    va_list args;
+    va_start(args, fmt);
+    int rc = append_format (dst, fmt, args);            
+    va_end(args);
+
+    return rc;
+}
+
 bool
 stx_resize (stx_t *ps, const size_t newcap)
 {
     return resize(ps, newcap);
 }
 
+bool 
+stx_equal (const stx_t a, const stx_t b) 
+{
+    if (!CHECK(a) || !CHECK(b)) return false;
+    const void* heada = HEAD(a);
+    const void* headb = HEAD(b);
+    const Type typea = TYPE(a);
+    const Type typeb = TYPE(b);
+    const size_t lena = GETPROP(heada, typea, len);
+
+    return (lena == GETPROP(headb, typeb, len)) && !memcmp (a, b, lena);
+}
+
+bool 
+stx_check (const stx_t s)
+{
+    return CHECK(s);
+}
 
 void 
 stx_show (const stx_t s)
@@ -182,7 +306,7 @@ stx_show (const stx_t s)
     if (!CHECK(s)) return;
 
     void* head = HEAD(s);
-    int type = TYPE(s);
+    Type type = TYPE(s);
 
     #define SHOW_FMT "cap:%zu len:%zu cookie:%d flags:%d data:'%s'\n"
     #define SHOW_ARGS (size_t)(h->cap), (size_t)(h->len), (uchar)s[-2], (uchar)s[-1], s
