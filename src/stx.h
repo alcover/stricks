@@ -39,11 +39,11 @@ size_t stx_cap (const stx_t s); // Capacity accessor
 size_t stx_len (const stx_t s); // Length accessor
 size_t stx_spc (const stx_t s); // Remaining space
 
-#define stx_append(dst, src) stx_append_count (dst, src, 0)
-#define stx_append_alloc(pdst, src) stx_append_count_alloc (pdst, src, 0)
-int		stx_append_format (const stx_t dst, const char* fmt, ...);
-int		stx_append_count (const stx_t dst, const char* src, const size_t n);
-size_t 	stx_append_count_alloc (stx_t *pdst, const char* src, const size_t n);
+intmax_t 	stx_append (stx_t dst, const char* src);
+size_t		stx_append_alloc (stx_t* dst, const char* src);
+intmax_t	stx_append_count (stx_t dst, const char* src, const size_t n);
+size_t		stx_append_count_alloc (stx_t* dst, const char* src, const size_t n);
+int			stx_append_format (const stx_t dst, const char* fmt, ...);
 
 // Shorthands
 #define stx_cat		stx_append
