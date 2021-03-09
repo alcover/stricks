@@ -242,19 +242,20 @@ void equal()
 }
 
 //=======================================================================================
+#define U(name) name(); printf("%s() passed\n", #name)
 
 int main()
 {
-    new();
-    from();
-    append();
-    append_alloc();
-    append_fmt();
-    dup();
-    reset();
-    check();
-    free_();
-    equal();
+    U(new);
+    U(from);
+    U(append);
+    U(append_alloc);
+    U(append_fmt);
+    U(dup);
+    U(reset);
+    U(check);
+    U(free_);
+    U(equal);
 
     printf ("unit tests OK\n");
     return 0;

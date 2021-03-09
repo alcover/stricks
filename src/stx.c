@@ -21,28 +21,23 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 
 typedef unsigned char uchar;
 
-typedef struct Head1 {   
+typedef struct {   
     uint8_t  cap;  
     uint8_t  len; 
 } Head1;
 
-typedef struct Head4 {   
+typedef struct {   
     uint32_t cap;  
     uint32_t len; 
 } Head4;
 
-// typedef struct HeadS {   
-//     size_t   cap;  
-//     size_t   len; 
-// } HeadS;
-
-typedef struct Attr {   
+typedef struct {   
     uchar cookie; 
     uchar flags;
     uchar data[]; 
 } Attr;
 
-typedef enum Type {
+typedef enum {
     TYPE1 = (int)log2(sizeof(Head1)), 
     TYPE4 = (int)log2(sizeof(Head4))
 } Type;
@@ -79,13 +74,13 @@ switch(type) { \
 #define HGETCAP(head, type) HGETPROP(head, type, cap)
 #define HGETLEN(head, type) HGETPROP(head, type, len)
 
-
 #define HGETSPC(head, type) \
 ((type == TYPE4) ? (((Head4*)head)->cap - ((Head4*)head)->len) \
                  : (((Head1*)head)->cap - ((Head1*)head)->len))
 
-#define GETPROP(s,prop) HGETPROP(HEAD(s), TYPE(s), prop)
 #define SETPROP(s,prop,val) HSETPROP(HEAD(s), TYPE(s), prop, val)
+#define GETPROP(s,prop) HGETPROP(HEAD(s), TYPE(s), prop)
+#define GETSPC(s) HGETSPC(HEAD(s), TYPE(s))
 
 
 //==== DECLARE ======================================================================
@@ -121,10 +116,14 @@ stx_new (const size_t cap)
     return (char*)(attr->data);
 }
 
-const stx_t
+stx_t
 stx_from (const char* src)
 {
+    if (!src) return NULL;
+    
     const size_t len = strlen(src);
+    if (!len) return NULL;
+
     const stx_t ret = stx_new(len);
 
     stx_append_count (ret, src, len);
@@ -172,23 +171,23 @@ switch(TYPE(s)){ \
 }
 
 size_t 
-stx_cap (const stx_t s) {ACCESS(s,cap);}
+stx_cap (const stx_t s) {
+    if (!CHECK(s)) return 0;  
+    return GETPROP(s, cap);  
+}
 
 size_t 
-stx_len (const stx_t s) {ACCESS(s,len);}
+stx_len (const stx_t s) {
+    if (!CHECK(s)) return 0;
+    return GETPROP(s, len);
+}
 
 size_t 
 stx_spc (const stx_t s)
 {
     if (!CHECK(s)) return 0;
 
-    void* head = HEAD(s);
-    
-    switch(TYPE(s)) {
-        case TYPE4: return ((Head4*)head)->cap - ((Head4*)head)->len;
-        case TYPE1: return ((Head1*)head)->cap - ((Head1*)head)->len;
-        default: return 0;
-    }
+    return GETSPC(s);
 }
 
 intmax_t 
@@ -234,6 +233,7 @@ stx_resize (stx_t *ps, const size_t newcap)
     return resize(ps, newcap);
 }
 
+// nb: memcmp(,,0) == 0
 bool 
 stx_equal (const stx_t a, const stx_t b) 
 {
