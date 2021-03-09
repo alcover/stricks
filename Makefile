@@ -17,7 +17,6 @@ $(lib): src/stx.c src/stx.h src/util.c
 	
 $(unit): src/unit.c $(lib)
 	$(LINK)
-# 	@ ./$(unit)
 
 $(example): example/forum.c $(lib)
 	$(LINK)
