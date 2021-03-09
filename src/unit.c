@@ -46,7 +46,6 @@ void from()
     stx_free(s);
 }
 
-
 void append()
 {
     #define APPEND_INIT(cap, src, count, exprc, explen, expdata)    \
@@ -111,8 +110,6 @@ void append()
     APPEND_MORE (foobarlen-1, foo, bar, barlen+1, -foobarlen, foolen,   foo);
 }
 
-
-
 void append_alloc()
 {
     #define APPENDA_INIT(cap, src, count, exprc, expdata) { \
@@ -125,8 +122,8 @@ void append_alloc()
 
     // big dest, no realloc
     APPENDA_INIT (biglen+1, big, 0, biglen, big);
-
-    // APPENDA_INIT (foolen  , big, 0, biglen, big);
+    // big src
+    APPENDA_INIT (foolen  , big, 0, biglen, big);
 
     // auto count
     APPENDA_INIT (foolen  , foo, 0, foolen, foo);
@@ -145,7 +142,6 @@ void append_alloc()
     APPENDA_INIT (foolen+1, foo, foolen+1, foolen, foo);
     APPENDA_INIT (foolen-1, foo, foolen+1, foolen, foo);
 }
-
 
 void append_fmt()
 {
@@ -244,6 +240,7 @@ void equal()
     stx_append (b, "o");
     assert(!stx_equal(a,b));
 }
+
 //=======================================================================================
 
 int main()

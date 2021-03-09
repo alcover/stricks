@@ -1,8 +1,8 @@
-![logo](assets/logo.png)
+![logo](assets/logo2.png)
 
 # Stricks
 Experimental managed C-strings library.  
-
+version 0.2.0
 :orange_book: [API](#API)
 
 ![schema](assets/block.png)
@@ -11,7 +11,7 @@ Experimental managed C-strings library.
 
 To make C-strings easier, safer and faster.  
 
-Normal `char*` C-strings are a painful and risky business.  
+Normal `char*` strings are a painful and risky business.  
 Appending while keeping track of length, ensure null-termination,  
 realloc, dangling pointers, etc...  
 
@@ -93,17 +93,27 @@ typedef char* stx_t;
 The trick :wink: lies **before** the *stx_t* address :  
 
 ```C
-
-struct Header {
-    size_t  cap;  
-    size_t  len; 
-    uint8_t cookie; 
-    char    data[]; 
+Header {   
+         cap;  
+         len;  
+         cookie; 
+         flags;
+    char data[];
 }
 ```
 
 *Header* holds the string's meta-data, taking care of state and bounds-checking.  
-Your `stx_t` points to the `data` member.  
+The `stx_t` type points directly to the `data` member.  
+
+```
+-------------------------------------------------------
+| cap | len | cookie | flags | data                   |
+-------------------------------------------------------
+                             ^
+                             |
+            stx_t ------------
+```
+
 Header and data occupy a **single block** of memory (an "*SBlock*"),  
 avoiding a further indirection like you find in typical `{len,*str}` schemes.    
 
@@ -111,6 +121,8 @@ The *SBlock* is of no concern to the user,
 who only passes and gets `stx_t` from the API.    
 Of course, being really a `char*`, a *strick* can be passed to any  
 (non-modifying) `string.h` functions.  
+
+The above pseudo-code is simplified. In reality, Stricks defines several header types to optimize space for short strings, and houses the *cookie* and *flags* attributes in a separate `struct`.
 
 ```C
 stx_t s = stx_from("Stricks");
@@ -128,9 +140,9 @@ This technique is used in Microsoft [BSTR](https://docs.microsoft.com/en-us/prev
 # Security
 
 No memory fault should be possible through the Stricks API.  
-This is achieved by checking on each call that a valid *Header* is present.  
-If not, no action is taken and a *falsy* value is returned.  
-(See `stx_free`)
+All methods check for a valid *Header*.  
+If not found, no action is taken and a *falsy* value gets returned.  
+(See *[stx_free](#stx_free)*)
 
 
 
@@ -138,22 +150,25 @@ If not, no action is taken and a *falsy* value is returned.
 # API
 
 [stx_new](#stx_new)  
-[stx_free](#stx_free)  
 [stx_from](#stx_from)  
 [stx_dup](#stx_dup)  
+
+[stx_free](#stx_free)  
 [stx_reset](#stx_reset)  
 [stx_resize](#stx_resize)  
-[stx_cap](#stx_cap)  
-[stx_len](#stx_len)  
-[stx_spc](#stx_spc)  
+[stx_equal](#stx_equal)  
+[stx_check](#stx_check)  
+[stx_show](#stx_show)  
+
 [stx_append](#stx_append) / stx_cat  
 [stx_append_alloc](#stx_append_alloc) / stx_cata  
 [stx_append_count](#stx_append_count) / stx_ncat  
 [stx_append_format](#stx_append_format) / stx_catf  
 [stx_append_count_alloc](#stx_append_count_alloc) / stx_ncata  
-[stx_equal](#stx_equal)  
-[stx_check](#stx_check)  
-[stx_show](#stx_show)  
+
+[stx_cap](#stx_cap)  
+[stx_len](#stx_len)  
+[stx_spc](#stx_spc)  
 
 
 
@@ -169,6 +184,34 @@ stx_t stx_new (const size_t cap)
 ```
 Allocates and inits a new `strick` of capacity `cap`.  
 
+### stx_from
+```C
+stx_t stx_from (const char* src)
+```
+Creates a new strick and copies `src` to it.  
+Capacity gets trimmed down to length.
+```C
+stx_t s = stx_from("Stricks");
+stx_show(s); 
+// cap:7 len:7 data:'Stricks'
+
+```
+
+### stx_dup
+```C
+stx_t stx_dup (const stx_t src)
+```
+Creates a duplicate strick of `src`.  
+Capacity gets trimmed down to length.
+```C
+stx_t s = stx_new(16);
+stx_cat(s, "foo");
+stx_t dup = stx_dup(s);
+stx_show(dup); 
+// cap:3 len:3 data:'foo'
+
+```
+
 ### stx_free
 ```C
 void stx_free (stx_t s)
@@ -182,51 +225,23 @@ stx_t s = stx_new(16);
 stx_append(s, "foo");
 stx_free(s);
 ```
-Use-after-free :
 
 ```C
+// Use-after-free
 stx_append(s, "bar");
 ```
 Nothing is done. Returns `STX_FAIL`.  
 
-Double-free :
 
 ```C
+// Double-free
 stx_free(s);
 ```
-Nothing is done. Hence no `double free detected`.  
+Nothing is done.
 
-#### How it's done :wrench:
-On first call of `stx_free(s)`, the header is zero'ed, erasing the `cookie` canary.  
-All subsequent API calls are no-ops returning falsy values.
-
-### stx_from
-```C
-const stx_t stx_from (const char* src)
-```
-Creates a new strick and copies `src` to it.  
-Capacity gets trimmed down to length.
-```C
-stx_t s = stx_from("Stricks");
-stx_show(s); 
-// cap:7 len:7 data:'Stricks'
-
-```
-
-### stx_dup
-```C
-const stx_t stx_dup (const stx_t src)
-```
-Creates a duplicate strick of `src`.  
-Capacity gets trimmed down to length.
-```C
-stx_t s = stx_new(16);
-stx_cat(s, "foo");
-stx_t dup = stx_dup(s);
-stx_show(dup); 
-// cap:3 len:3 data:'foo'
-
-```
+#### How it works :wrench:
+On first call, `stx_free(s)` zeroes-out the header, erasing the `cookie` canary.  
+All subsequent API calls check for the canary, find it dead, then do nothing.
 
 ### stx_reset    
 ```C
@@ -370,7 +385,6 @@ stx_show(foo);
 bool stx_check (const stx_t s)
 ```
 Check if *s* has a valid header.  
-If it has a valid *cookie* and meaningful fields, then it's a fine duck.
 
 ### stx_cap  
 ```C
