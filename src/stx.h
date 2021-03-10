@@ -21,8 +21,6 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #define STX_FREE free
 #endif
 
-#define STX_FAIL 0
-
 typedef char* stx_t;
 
 stx_t stx_new (const size_t cap);
@@ -48,9 +46,9 @@ size_t stx_spc (const stx_t s); // remaining space
 
 // Shorthands
 #define stx_cat		stx_append
-#define stx_cata	stx_append_alloc
-#define stx_catf	stx_append_format
 #define stx_ncat	stx_append_count
+#define stx_catf	stx_append_format
+#define stx_cata	stx_append_alloc
 #define stx_ncata	stx_append_count_alloc
 
 #endif

@@ -286,7 +286,7 @@ append (void* dst, const char* src, const size_t n, bool alloc/*, bool strict*/)
 {
     stx_t s = alloc ? *((stx_t**)(dst)) : dst;
     
-    if (!CHECK(s)||!src) return STX_FAIL;
+    if (!CHECK(s)||!src) return 0;
 
     const size_t cap = GETPROP(s, cap);
     const size_t len = GETPROP(s, len);
@@ -299,7 +299,7 @@ append (void* dst, const char* src, const size_t n, bool alloc/*, bool strict*/)
 
         if (!resize(&s, totlen*2)) {
             ERR("resize failed");
-            return STX_FAIL;
+            return 0;
         }
         *((stx_t*)(dst)) = s;
     }
@@ -381,7 +381,7 @@ append_format (stx_t dst, const char* fmt, va_list args)
     const size_t len = HGETLEN(head, type);
     const size_t spc = HGETSPC(head, type);
 
-    if (!spc) return STX_FAIL;
+    if (!spc) return 0;
 
     char* end = dst + len;
 
@@ -392,7 +392,7 @@ append_format (stx_t dst, const char* fmt, va_list args)
     if (src_len < 0) {
         perror("stx_append_format");
         *end = 0; // undo
-        return STX_FAIL;
+        return 0;
     }
 
     // Truncation

@@ -194,11 +194,11 @@ void free_()
     assert (!stx_spc(s));
     assert (!stx_resize (&s,10));
     assert (!stx_dup(s));
-    assert (STX_FAIL == stx_append (s, bar));
-    assert (STX_FAIL == stx_append_alloc (&s, bar));
-    assert (STX_FAIL == stx_append_format (s, "%s", bar));
-    assert (STX_FAIL == stx_append_count (s, bar, 3));
-    assert (STX_FAIL == stx_append_count_alloc (&s, bar, 3));
+    assert (0 == stx_append (s, bar));
+    assert (0 == stx_append_alloc (&s, bar));
+    assert (0 == stx_append_format (s, "%s", bar));
+    assert (0 == stx_append_count (s, bar, 3));
+    assert (0 == stx_append_count_alloc (&s, bar, 3));
 }
 
 void reset()
