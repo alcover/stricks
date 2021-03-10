@@ -8,6 +8,7 @@
 
 #include "stx.h"
 #include "log.h"
+#include "util.c"
 
 #define X16(s) #s #s #s #s #s #s #s #s #s #s #s #s #s #s #s #s 
 #define BIG X16(aaaabbbbccccdddd)
@@ -15,36 +16,47 @@
 const char* big = BIG;
 const char* huge = BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG;
 
-int main() {
-// {
-// 	stx_t s = stx_new(6);
-// 	stx_show(s);
-// 	stx_append_count(s, "foo", 0);
-// 	stx_show(s); 
-// 	printf("%zu %zu\n", stx_cap(s), stx_len(s));
-// }
 
-// {
-// 	stx_t s = stx_new(300);
-// 	stx_show(s);
-// 	stx_append_count_alloc(&s, "foo", 0);
-// 	stx_show(s); 
-// 	printf("%zu %zu\n", stx_cap(s), stx_len(s));
-// }
-{
-	stx_t s = stx_from("foo");
-	stx_show(s);
-	stx_resize(&s, 300);
-	stx_show(s); 
-	printf("%zu %zu\n", stx_cap(s), stx_len(s));
+
+void scb (const char* s, size_t len, void* ctx){
+	printf("'%.*s' %zu\n", (int)len, s, len);
 }
-{
-	stx_t s = stx_new(3);
-	stx_show(s);
-	stx_append_count_alloc(&s, big, 0);
-	stx_show(s); 
-	printf("%zu %zu\n", stx_cap(s), stx_len(s));
-}
+
+int main() {
+
+
+	str_split ("de, la, balle", ", ", scb, NULL);	
+	 
+	// {
+	// 	stx_t s = stx_new(6);
+	// 	stx_show(s);
+	// 	stx_append_count(s, "foo", 0);
+	// 	stx_show(s); 
+	// 	printf("%zu %zu\n", stx_cap(s), stx_len(s));
+	// }
+
+	// {
+	// 	stx_t s = stx_new(300);
+	// 	stx_show(s);
+	// 	stx_append_count_alloc(&s, "foo", 0);
+	// 	stx_show(s); 
+	// 	printf("%zu %zu\n", stx_cap(s), stx_len(s));
+	// }
+
+	// {
+	// 	stx_t s = stx_from("foo");
+	// 	stx_show(s);
+	// 	stx_resize(&s, 300);
+	// 	stx_show(s); 
+	// 	printf("%zu %zu\n", stx_cap(s), stx_len(s));
+	// }
+	// {
+	// 	stx_t s = stx_new(3);
+	// 	stx_show(s);
+	// 	stx_append_count_alloc(&s, big, 0);
+	// 	stx_show(s); 
+	// 	printf("%zu %zu\n", stx_cap(s), stx_len(s));
+	// }
 
 
     return 0;

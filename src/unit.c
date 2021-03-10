@@ -16,7 +16,9 @@
 #define ASSERT_PROPS(s, cap, len, data) \
 assert (stx_cap(s) == cap); \
 assert (stx_len(s) == len); \
-assert (!strcmp(s, data))    
+assert (!strcmp(s, data))  
+
+#define CAP 100  
 
 const char* foo = "foo";
 const char* bar = "bar";
@@ -32,17 +34,21 @@ static_assert(strlen(BIG)==biglen, "biglen != 256");
 const char* big = BIG;
 
 void new() 
-{
-    const int cap = 100;
-    stx_t s = stx_new(cap);
-    ASSERT_PROPS (s, cap, 0, ""); 
+{ 
+    stx_t s = stx_new(CAP);
+    ASSERT_PROPS (s, CAP, 0, ""); 
     stx_free(s);
 }
 
 void from() 
 {
-    stx_t s = stx_from(foo);
+    stx_t s = stx_from(foo, 0);
     ASSERT_PROPS (s, foolen, foolen, foo); 
+    s = stx_from(foo, foolen-1);
+    ASSERT_PROPS (s, foolen-1, foolen-1, "fo");     
+    s = stx_from(foo, foolen+1);
+    ASSERT_PROPS (s, foolen, foolen, foo); 
+
     stx_free(s);
 }
 
@@ -203,11 +209,10 @@ void free_()
 
 void reset()
 {
-    const int cap = 100;
-    stx_t s = stx_new(cap);
+    stx_t s = stx_new(CAP);
     stx_append (s, foo);
     stx_reset(s);
-    ASSERT_PROPS (s, cap, 0, ""); 
+    ASSERT_PROPS (s, CAP, 0, ""); 
     stx_free(s);
 }
 
@@ -241,8 +246,32 @@ void equal()
     assert(!stx_equal(a,b));
 }
 
+void trim()
+{
+    stx_t s = stx_new(CAP);
+    stx_append (s, " foo ");
+    stx_trim(s);
+    ASSERT_PROPS(s, CAP, foolen, foo);
+}
+
+// todo cases
+void split()
+{
+    stx_t s = stx_from("foo, foo", 0);
+    unsigned cnt = 0;
+    stx_t* list = stx_split(s, ", ", &cnt);
+    // LOGVI(cnt);
+    assert(cnt==2);
+
+    for (int i = 0; i < cnt; ++i) {
+        stx_t elt = list[i];
+        // printf("tok %s\n", elt); fflush(stdout);
+        ASSERT_PROPS(elt, foolen, foolen, foo);
+    }
+}
+
 //=======================================================================================
-#define U(name) name(); printf("%s() passed\n", #name)
+#define U(name) name(); printf("passed %s\n", #name)
 
 int main()
 {
@@ -256,6 +285,8 @@ int main()
     U(check);
     U(free_);
     U(equal);
+    U(trim);
+    U(split);
 
     printf ("unit tests OK\n");
     return 0;

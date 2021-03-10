@@ -11,6 +11,7 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #include <stddef.h>
 #include <string.h>
 #include <strings.h>
+#include <ctype.h> // isspace
 #include <math.h>
 #include <assert.h>
 #include <errno.h>
@@ -20,6 +21,7 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #include "util.c"
 
 typedef unsigned char uchar;
+typedef unsigned int uint;
 
 typedef struct {   
     uint8_t  cap;  
@@ -117,11 +119,11 @@ stx_new (const size_t cap)
 }
 
 stx_t
-stx_from (const char* src)
+stx_from (const char* src, const size_t n)
 {
     if (!src) return NULL;
     
-    const size_t len = strlen(src);
+    const size_t len = n ? strnlen(src,n) : strlen(src);
     if (!len) return NULL;
 
     stx_t ret = stx_new(len);
@@ -277,6 +279,58 @@ stx_show (const stx_t s)
     }
 
     fflush(stdout);
+}
+
+
+// in-place
+void 
+stx_trim (const stx_t s)
+{
+    if (!CHECK(s)) return;
+    
+    const char* front = s;
+    while (isspace(*front)) ++front;
+
+    const char* end = s + GETPROP(s,len);
+    while (end > front && isspace(*(end-1))) --end;
+    
+    const size_t tlen = end-front;
+    
+    if (front > s) {
+        memmove(s, front, tlen);
+        s[tlen] = 0;
+        SETPROP(s, len, tlen);
+    }
+}
+
+
+typedef struct {stx_t* out; int cnt;} split_ctx;
+
+static void 
+split_callback (const char* tok, const size_t len, void* ctx)
+{
+    split_ctx* c = ctx;
+
+    if(!c->cnt) return; //should not happen - todo alert
+
+    stx_t out = stx_from(tok, len);
+    *(c->out++) = out;
+    --c->cnt;
+}
+
+// sec ?
+stx_t*
+stx_split (const stx_t s, const char* sep, unsigned int* outcnt)
+{
+    const uint cnt = str_count_str(s,sep) + 1;
+    stx_t* ret = STX_MALLOC(cnt * sizeof(*ret)); 
+    stx_t* ptr = ret;
+    split_ctx ctx = {ptr,cnt};
+
+    str_split (s, sep, split_callback, &ctx);
+
+    *outcnt = cnt;
+    return ret;
 }
 
 //==== PRIVATE =======================================================================
