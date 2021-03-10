@@ -89,7 +89,7 @@ static intmax_t
 append (void* dst, const char* src, const size_t n, bool alloc/*, bool strict*/);
 static bool 
 resize (stx_t *ps, const size_t newcap);
-static int 
+static intmax_t 
 append_format (stx_t dst, const char* fmt, va_list args);
 static stx_t
 dup (const stx_t s);
@@ -124,9 +124,9 @@ stx_from (const char* src)
     const size_t len = strlen(src);
     if (!len) return NULL;
 
-    const stx_t ret = stx_new(len);
-
-    stx_append_count (ret, src, len);
+    stx_t ret = stx_new(len);
+    memcpy(ret, src, len);
+    SETPROP(ret, len, len);
 
     return ret;
 }
@@ -214,14 +214,14 @@ stx_append_count_alloc (stx_t* dst, const char* src, const size_t n)
     return append((void*)dst, src, n, true);        
 }
 
-int 
+intmax_t 
 stx_append_format (const stx_t dst, const char* fmt, ...) 
 {
     if (!CHECK(dst)) return 0;
 
     va_list args;
     va_start(args, fmt);
-    int rc = append_format (dst, fmt, args);            
+    intmax_t rc = append_format (dst, fmt, args);            
     va_end(args);
 
     return rc;
@@ -237,7 +237,7 @@ stx_resize (stx_t *ps, const size_t newcap)
 bool 
 stx_equal (const stx_t a, const stx_t b) 
 {
-    if (!CHECK(a) || !CHECK(b)) return false;
+    if (!CHECK(a)||!CHECK(b)) return false;
 
     const size_t lena = GETPROP((a), len);
     const size_t lenb = GETPROP((b), len);
@@ -373,7 +373,7 @@ resize (stx_t *ps, const size_t newcap)
 }
 
 
-static int 
+static intmax_t 
 append_format (stx_t dst, const char* fmt, va_list args)
 {
     const void* head = HEAD(dst);
@@ -419,10 +419,10 @@ dup (const stx_t s)
 
     if (!new_head) return NULL;
 
-    memcpy (new_head, head, sz);
+    memcpy(new_head, head, sz);
     HSETCAP(new_head, type, len);
     stx_t ret = DATA(new_head, type);
-    ret[len] = 0; // to be sure
+    ret[len] = 0;
 
     return ret;
 }
