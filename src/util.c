@@ -24,6 +24,7 @@ str_split (const char *str, const char* sep,
         if (!strncmp(str+end, sep, seplen)) {
             callback (str + beg, end - beg, ctx);
             beg = end + seplen;
+	    end = beg;
         }
     }
 
@@ -34,7 +35,8 @@ str_split (const char *str, const char* sep,
 static inline int
 str_count_str (const char *str, const char* tok)
 {
+	const size_t toklen = strlen(tok);
 	int ret = 0;
-	for (const char* tmp = str; (tmp = strstr(tmp,tok)); ++tmp, ++ret);
+	for (const char* tmp = str; (tmp = strstr(tmp,tok)); tmp += toklen, ++ret);
 	return ret;
 }
