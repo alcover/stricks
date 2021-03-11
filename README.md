@@ -1,4 +1,4 @@
-![logo](assets/logo3.png)
+![logo](assets/logo.png)
 
 # Stricks
 Experimental managed C-strings library.  
