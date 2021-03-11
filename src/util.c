@@ -1,10 +1,3 @@
-#define ASSERT(c, m) { \
-if (!(c)) { \
-    fprintf(stderr, __FILE__ ":%d: assertion %s failed: %s\n", __LINE__, #c, m); \
-    exit(1); \
-} \
-}
-
 static inline size_t
 strnlen (const char *s, size_t maxlen)
 {
@@ -37,6 +30,7 @@ str_split (const char *str, const char* sep,
     callback (str + beg, end - beg, ctx);
 }
 
+// alco - unverified
 static inline int
 str_count_str (const char *str, const char* tok)
 {

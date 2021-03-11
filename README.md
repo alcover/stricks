@@ -1,25 +1,19 @@
-![logo](assets/logo2.png)
+![logo](assets/logo3.png)
 
 # Stricks
 Experimental managed C-strings library.  
-version 0.2.0
+v0.2.0  
 :orange_book: [API](#API)
-
-![schema](assets/block.png)
 
 ## Why ?
 
-To make C-strings easier, safer and faster.  
+C strings are hard, unassisted and risky.  
+Appending while keeping track of length, null-termination, realloc, etc...  
 
-Normal `char*` strings are a painful and risky business.  
-Appending while keeping track of length, ensure null-termination,  
-realloc, dangling pointers, etc...  
+They can also be slowed by excessive (sometimes implicit) calls to `strlen`.  
 
-Plus, despite the low-level feel of manual handling, the ex-or-implicit calls  
-to `strlen` may be a speed concern.  
-
-Say you're making a forum engine, where a *page* is a fixed-size buffer.  
-How to safely feed a page with posts without truncation ?
+Say you're making a forum engine, where a *page* is a fixed buffer.  
+How to safely add posts without truncation ?
 
 
 ### The hard way
@@ -35,25 +29,25 @@ while(1) {
     char* user = db("user");
     char* text = db("text");
 
-    // Will the null be counted ?
-    // Need to lookup `snprintf`...
+    // Will null be counted ? Lookup `snprintf`...
     // In fact it won't !
     int post_len = snprintf (
         // Keep track
         page + page_len,
-        // Will it be null-terminated ?
-        // Need to lookup `snprintf` again...
+        // Will it be null-terminated ? Lookup `snprintf`...
         // In fact it will !
         PAGE_SZ - page_len, 
         "<div>%s<br>%s</div>", user, text
     );
     
+    // Don't forget that '+1' !
     if (page_len + post_len + 1 > PAGE_SZ) {
         // Does not fit. Undo.
         page[page_len] = 0;
         break;
     }
-
+    
+    // Keep track
     page_len += post_len;
 }
 ```
@@ -68,21 +62,21 @@ while(1) {
     char* user = db("user");
     char* text = db("text");
 
-    if (stx_catf(page, "<div>%s<br>%s</div>", user, text) <= 0)
+    if (stx_catf(page, "<div>%s<br>%s</div>", user, text) <= 0) 
         break;
 }
 ```
 
 ### Quick sample
 
-The *example* folder implements the 'forum'.  
-It reads rows from a mock db, and renders them to a page of limited size.  
-When the next post won't fit, we flush the page and start anew.  
+See *example/forum.c* for a Stricks implementation of the 'forum'.  
 
 `make && cd example && ./forum`
 
 
 # Principle
+
+![schema](assets/schema.png)
 
 The `stx_t` (or "*strick*") type is just a normal `char*` string.  
 
@@ -102,30 +96,23 @@ Header {
 }
 ```
 
-*Header* holds the string's meta-data, taking care of state and bounds-checking.  
+*Header* takes care of the string state and bounds-checking.  
 The `stx_t` type points directly to the `data` member.  
 
-```
--------------------------------------------------------
-| cap | len | cookie | flags | data                   |
--------------------------------------------------------
-                             ^
-                             |
-            stx_t ------------
-```
+This technique is used notably in antirez [SDS](https://github.com/antirez/sds).  
 
 Header and data occupy a **single block** of memory (an "*SBlock*"),  
-avoiding a further indirection like you find in typical `{len,*str}` schemes.    
+avoiding the further indirection you find in typical `{len,*str}` schemes.    
 
-The *SBlock* is of no concern to the user,  
-who only passes and gets `stx_t` from the API.    
+The *SBlock* is invisible to the user, who only passes `stx_t` to and from the API.    
 Of course, being really a `char*`, a *strick* can be passed to any  
-(non-modifying) `string.h` functions.  
+(non-modifying) `<string.h>` function.  
 
-The above pseudo-code is simplified. In reality, Stricks defines several header types to optimize space for short strings, and houses the *cookie* and *flags* attributes in a separate `struct`.
+The above Header layout is simplified. In reality, Stricks defines several header types to optimize space for short strings, and houses the *cookie* and *flags* attributes in a separate `struct`.
 
+#### example usage
 ```C
-stx_t s = stx_from("Stricks");
+stx_t s = stx_from("Stricks", 0);
 
 stx_cata(s, " rule!");        
 printf("%s\n", s);
@@ -134,7 +121,7 @@ printf("%s\n", s);
 
 ```
 
-This technique is used in Microsoft [BSTR](https://docs.microsoft.com/en-us/previous-versions/windows/desktop/automat/bstr) and antirez [SDS](https://github.com/antirez/sds).  
+
 
 
 # Security
@@ -153,56 +140,61 @@ If not found, no action is taken and a *falsy* value gets returned.
 [stx_from](#stx_from)  
 [stx_dup](#stx_dup)  
 
-[stx_free](#stx_free)  
-[stx_reset](#stx_reset)  
-[stx_resize](#stx_resize)  
-[stx_equal](#stx_equal)  
-[stx_check](#stx_check)  
-[stx_show](#stx_show)  
-
-[stx_append](#stx_append) / stx_cat  
-[stx_append_alloc](#stx_append_alloc) / stx_cata  
-[stx_append_count](#stx_append_count) / stx_ncat  
-[stx_append_format](#stx_append_format) / stx_catf  
-[stx_append_count_alloc](#stx_append_count_alloc) / stx_ncata  
-
 [stx_cap](#stx_cap)  
 [stx_len](#stx_len)  
 [stx_spc](#stx_spc)  
 
+[stx_free](#stx_free)  
+[stx_reset](#stx_reset)  
+[stx_trim](#stx_trim)  
+[stx_show](#stx_show)  
+[stx_resize](#stx_resize)  
+[stx_check](#stx_check)  
+[stx_equal](#stx_equal)  
+[stx_split](#stx_split)  
+
+[stx_append](#stx_append) / stx_cat  
+[stx_append_count](#stx_append_count) / stx_ncat  
+[stx_append_format](#stx_append_format) / stx_catf  
+[stx_append_alloc](#stx_append_alloc) / stx_cata  
+[stx_append_count_alloc](#stx_append_count_alloc) / stx_ncata  
+
 
 
 Custom allocator and destructor can be defined with  
-```C
+```
 #define STX_MALLOC ...
 #define STX_FREE ...
 ```
 
 ### stx_new
+Allocates and inits a new *strick* of capacity `cap`.  
 ```C
 stx_t stx_new (const size_t cap)
 ```
-Allocates and inits a new `strick` of capacity `cap`.  
 
 ### stx_from
+Creates a new *strick* with at most `n` bytes from `src`.  
 ```C
-stx_t stx_from (const char* src)
+stx_t stx_from (const char* src, const size_t n)
 ```
-Creates a new strick and copies `src` to it.  
+If `n` is zero, `strlen(src)` is used.  
 Capacity gets trimmed down to length.
+
 ```C
-stx_t s = stx_from("Stricks");
+stx_t s = stx_from("Stricks", 0);
 stx_show(s); 
 // cap:7 len:7 data:'Stricks'
 
 ```
 
 ### stx_dup
+Creates a duplicate strick of `src`.  
 ```C
 stx_t stx_dup (const stx_t src)
 ```
-Creates a duplicate strick of `src`.  
 Capacity gets trimmed down to length.
+
 ```C
 stx_t s = stx_new(16);
 stx_cat(s, "foo");
@@ -210,6 +202,41 @@ stx_t dup = stx_dup(s);
 stx_show(dup); 
 // cap:3 len:3 data:'foo'
 
+```
+
+
+
+### stx_cap  
+Current capacity accessor.
+```C
+size_t stx_cap (const stx_t s)
+```
+
+### stx_len  
+Current length accessor.
+```C
+size_t stx_len (const stx_t s)
+```
+
+### stx_spc  
+Remaining space.
+```C
+size_t stx_spc (const stx_t s)
+```
+
+
+
+### stx_reset    
+Sets data length to zero.  
+```C
+void stx_reset (const stx_t s)
+```
+```C
+stx_t s = stx_new(16);
+stx_cat(s, "foo");
+stx_reset(s);
+stx_show(s); 
+// cap:16 len:0 data:''
 ```
 
 ### stx_free
@@ -224,47 +251,30 @@ Releases the underlying SBlock.
 stx_t s = stx_new(16);
 stx_append(s, "foo");
 stx_free(s);
-```
 
-```C
 // Use-after-free
 stx_append(s, "bar");
-```
-Nothing is done. Returns `STX_FAIL`.  
+// No action. Returns 0.  
 
-
-```C
 // Double-free
 stx_free(s);
+// No action.
 ```
-Nothing is done.
 
 #### How it works :wrench:
 On first call, `stx_free(s)` zeroes-out the header, erasing the `cookie` canary.  
 All subsequent API calls check for the canary, find it dead, then do nothing.
 
-### stx_reset    
-```C
-void stx_reset (const stx_t s)
-```
-Sets data length to zero.  
-```C
-stx_t s = stx_new(16);
-stx_cat(s, "foo");
-stx_reset(s);
-stx_show(s); 
-// cap:16 len:0 data:''
-```
 
 ### stx_resize    
+Change capacity.  
 ```C
 bool stx_resize (stx_t *pstx, const size_t newcap)
 ```
-Change capacity.  
 * If increased, the passed **reference** may get transparently updated.
 * If lowered below length, data gets truncated.  
 
-Returns: `true`/`false` on success/failure.
+Returns: `true/false` on success/failure.
 ```C
 stx_t s = stx_new(3);
 int rc = stx_cat(s, "foobar"); // -> -6
@@ -273,6 +283,66 @@ stx_cat(s, "foobar");
 stx_show(s); 
 // cap:6 len:6 data:'foobar'
 ```
+
+
+### stx_trim
+Removes white space, left and right.
+```C
+void stx_trim (const stx_t s)
+```
+Capacity remains the same.
+
+
+### stx_split
+Splits a *strick* **or** string on separator `sep` into an array of *stricks*. 
+```C
+stx_t* stx_split (const void* s, const char* sep, unsigned int *outcnt)
+```
+`*outcnt` receives the returned array length.
+
+```C
+stx_t s = stx_from("foo, bar", 0);
+unsigned cnt = 0;
+
+stx_t* list = stx_split(s, ", ", &cnt);
+
+for (int i = 0; i < cnt; ++i) {
+    stx_show(list[i]);
+}
+
+// cap:3 len:3 data:'foo'
+// cap:3 len:3 data:'bar'
+
+```
+
+
+
+
+### stx_equal    
+Compares `a` and `b`'s data string.  
+```C
+bool stx_equal (const stx_t a, const stx_t b)
+```
+* Capacities are not compared.
+* Faster than `memcmp` since stored lengths are compared first.
+
+
+### stx_show    
+```C
+void stx_show (const stx_t s)
+```
+Utility. Prints the state of `s`.
+```C
+stx_show(foo);
+// cap:8 len:5 data:'hello'
+```
+
+
+### stx_check    
+```C
+bool stx_check (const stx_t s)
+```
+Check if *s* has a valid header.  
 
 
 ### stx_append
@@ -320,6 +390,29 @@ printf("%s", s); // "ab"
 ```
 
 
+### stx_append_format
+stx_catf     
+```C
+int stx_catf (stx_t dst, const char* fmt, ...)
+```
+Appends a formatted c-string to `dst`, in place.  
+
+* **No reallocation**.
+* Nothing done if input exceeds remaining space.
+
+Return code :  
+* `rc >= 0`  on success, as increase in length.  
+* `rc < 0`   on potential truncation, as needed capacity.  
+* `rc = 0`   on error.  
+
+```C
+stx_t foo = stx_new(32);
+stx_catf (foo, "%s has %d apples", "Mary", 10);
+stx_show(foo);
+// cap:32 len:18 data:'Mary has 10 apples'
+```
+
+
 ### stx_append_alloc
 stx_cata     
 ```C
@@ -356,73 +449,6 @@ Return code :
 * `rc = 0`   on error.  
 * `rc >= 0`  on success, as change in length. 
 
-
-### stx_append_format
-stx_catf     
-```C
-int stx_catf (stx_t dst, const char* fmt, ...)
-```
-Appends a formatted c-string to `dst`, in place.  
-
-* **No reallocation**.
-* Nothing done if input exceeds remaining space.
-
-Return code :  
-* `rc >= 0`  on success, as increase in length.  
-* `rc < 0`   on potential truncation, as needed capacity.  
-* `rc = 0`   on error.  
-
-```C
-stx_t foo = stx_new(32);
-stx_catf (foo, "%s has %d apples", "Mary", 10);
-stx_show(foo);
-// cap:32 len:18 data:'Mary has 10 apples'
-```
-
-
-### stx_check    
-```C
-bool stx_check (const stx_t s)
-```
-Check if *s* has a valid header.  
-
-### stx_cap  
-```C
-size_t stx_cap (const stx_t s)
-```
-Current capacity accessor.
-
-### stx_len  
-```C
-size_t stx_len (const stx_t s)
-```
-Current length accessor.
-
-### stx_spc  
-```C
-size_t stx_spc (const stx_t s)
-```
-Remaining space.
-
-
-### stx_equal    
-```C
-bool stx_equal (const stx_t a, const stx_t b)
-```
-Compares `a` and `b`'s data string.  
-* Capacities are not compared.
-* Faster than `memcmp` since stored lengths are compared first.
-
-
-### stx_show    
-```C
-void stx_show (const stx_t s)
-```
-Utility. Prints the state of `s`.
-```C
-stx_show(foo);
-// cap:8 len:5 data:'hello'
-```
 
 
 

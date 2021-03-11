@@ -17,15 +17,17 @@ const char* big = BIG;
 const char* huge = BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG;
 
 
-
-void scb (const char* s, size_t len, void* ctx){
-	printf("'%.*s' %zu\n", (int)len, s, len);
-}
-
 int main() {
 
+stx_t s = stx_from("foo, bar", 0);
+unsigned cnt = 0;
 
-	str_split ("de, la, balle", ", ", scb, NULL);	
+stx_t* list = stx_split(s, ", ", &cnt);
+
+for (int i = 0; i < cnt; ++i) {
+    // printf("%s\n", list[i]);
+    stx_show(list[i]);
+}
 	 
 	// {
 	// 	stx_t s = stx_new(6);

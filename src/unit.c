@@ -252,6 +252,11 @@ void trim()
     stx_append (s, " foo ");
     stx_trim(s);
     ASSERT_PROPS(s, CAP, foolen, foo);
+
+    s = stx_new(CAP);
+    stx_append (s, "foo ");
+    stx_trim(s);
+    ASSERT_PROPS(s, CAP, foolen, foo);
 }
 
 // todo cases

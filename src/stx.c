@@ -1,6 +1,6 @@
 /*
 Stricks v0.2.0
-Copyright (C) 2021 - Francois Alcover <francois@alcover.fr>
+Copyright (C) 2021 - Francois Alcover <francois[@]alcover.fr>
 NO WARRANTY EXPRESSED OR IMPLIED.
 */
 
@@ -24,7 +24,7 @@ typedef unsigned char uchar;
 typedef unsigned int uint;
 
 typedef struct {   
-    uint8_t  cap;  
+    uint8_t  cap;  //capacity
     uint8_t  len; 
 } Head1;
 
@@ -36,7 +36,7 @@ typedef struct {
 typedef struct {   
     uchar cookie; 
     uchar flags;
-    uchar data[]; 
+    char data[]; 
 } Attr;
 
 typedef enum {
@@ -85,8 +85,6 @@ switch(type) { \
 #define GETSPC(s) HGETSPC(HEAD(s), TYPE(s))
 
 
-//==== DECLARE ======================================================================
-
 static intmax_t 
 append (void* dst, const char* src, const size_t n, bool alloc/*, bool strict*/);
 static bool 
@@ -98,7 +96,7 @@ dup (const stx_t s);
 
 //==== PUBLIC =======================================================================
 
-stx_t 
+const stx_t 
 stx_new (const size_t cap)
 {
     const Type type = (cap >= 256) ? TYPE4 : TYPE1;
@@ -115,10 +113,10 @@ stx_new (const size_t cap)
     attr->data[0] = 0; 
     attr->data[cap] = 0; 
     
-    return (char*)(attr->data);
+    return (attr->data);
 }
 
-stx_t
+const stx_t
 stx_from (const char* src, const size_t n)
 {
     if (!src) return NULL;
@@ -133,7 +131,7 @@ stx_from (const char* src, const size_t n)
     return ret;
 }
 
-stx_t
+const stx_t
 stx_dup (const stx_t s)
 {
     return CHECK(s) ? dup(s) : NULL;
@@ -153,7 +151,7 @@ stx_free (const stx_t s)
 {
     if (!CHECK(s)) return;
 
-    char* head = HEAD(s);
+    void* head = HEAD(s);
     
     switch(TYPE(s)) {
         case TYPE4: bzero(head, sizeof(Head4) + sizeof(Attr)); break;
@@ -163,14 +161,6 @@ stx_free (const stx_t s)
     STX_FREE(head);
 }
 
-#define ACCESS(s, prop) \
-if (!CHECK(s)) return 0; \
-void* head = HEAD(s); \
-switch(TYPE(s)){ \
-    case TYPE1: return ((Head1*)head)->prop; \
-    case TYPE4: return ((Head4*)head)->prop; \
-    default: return 0; \
-}
 
 size_t 
 stx_cap (const stx_t s) {
@@ -294,13 +284,14 @@ stx_trim (const stx_t s)
     const char* end = s + GETPROP(s,len);
     while (end > front && isspace(*(end-1))) --end;
     
-    const size_t tlen = end-front;
+    const size_t newlen = end-front;
     
     if (front > s) {
-        memmove(s, front, tlen);
-        s[tlen] = 0;
-        SETPROP(s, len, tlen);
+        memmove(s, front, newlen);
     }
+    
+    s[newlen] = 0;
+    SETPROP(s, len, newlen);
 }
 
 
@@ -311,7 +302,7 @@ split_callback (const char* tok, const size_t len, void* ctx)
 {
     split_ctx* c = ctx;
 
-    if(!c->cnt) return; //should not happen - todo alert
+    if (!c->cnt) return; //should not happen - todo alert
 
     stx_t out = stx_from(tok, len);
     *(c->out++) = out;
@@ -320,7 +311,7 @@ split_callback (const char* tok, const size_t len, void* ctx)
 
 // sec ?
 stx_t*
-stx_split (const stx_t s, const char* sep, unsigned int* outcnt)
+stx_split (const void* s, const char* sep, unsigned int* outcnt)
 {
     const uint cnt = str_count_str(s,sep) + 1;
     stx_t* ret = STX_MALLOC(cnt * sizeof(*ret)); 

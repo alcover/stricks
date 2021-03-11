@@ -10,8 +10,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-
-#define STX_SHORT_NAMES
 #include "../src/stx.h"
 
 #define DB "posts.csv"
