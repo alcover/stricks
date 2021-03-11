@@ -484,4 +484,4 @@ Hello! My name is Alco.
 ## TODO
 * utf8
 * Slices / StringView
-* High-level methods like *split()* and stuff.
+* More high-level methods
