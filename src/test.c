@@ -19,15 +19,22 @@ const char* huge = BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG B
 
 int main() {
 
-stx_t s = stx_from("foo, bar", 0);
-unsigned cnt = 0;
+unsigned int count;
+stx_t* results = stx_split("baaaad", "aa", &count);
 
-stx_t* list = stx_split(s, ", ", &cnt);
-
-for (int i = 0; i < cnt; ++i) {
-    // printf("%s\n", list[i]);
-    stx_show(list[i]);
+for (int i = 0; i < count; ++i) {
+    printf("%s\n", results[i]);
 }
+
+	// stx_t s = stx_from("foo, bar", 0);
+	// unsigned cnt = 0;
+
+	// stx_t* list = stx_split(s, ", ", &cnt);
+
+	// for (int i = 0; i < cnt; ++i) {
+	//     // printf("%s\n", list[i]);
+	//     stx_show(list[i]);
+	// }
 	 
 	// {
 	// 	stx_t s = stx_new(6);

@@ -255,6 +255,8 @@ stx_free(s);
 // Use-after-free
 stx_append(s, "bar");
 // No action. Returns 0.  
+printf("%zu\n", stx_len(s));
+// 0
 
 // Double-free
 stx_free(s);

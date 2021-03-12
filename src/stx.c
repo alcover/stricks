@@ -149,7 +149,12 @@ stx_reset (const stx_t s)
 void 
 stx_free (const stx_t s)
 {
-    if (!CHECK(s)) return;
+    if (!CHECK(s)) {
+        #ifdef STX_WARNINGS
+            ERR ("stx_free: invalid header\n");
+        #endif
+        return;
+    }
 
     void* head = HEAD(s);
     
@@ -163,13 +168,15 @@ stx_free (const stx_t s)
 
 
 size_t 
-stx_cap (const stx_t s) {
+stx_cap (const stx_t s) 
+{
     if (!CHECK(s)) return 0;  
     return GETPROP(s, cap);  
 }
 
 size_t 
-stx_len (const stx_t s) {
+stx_len (const stx_t s) 
+{
     if (!CHECK(s)) return 0;
     return GETPROP(s, len);
 }
