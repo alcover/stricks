@@ -16,7 +16,7 @@ Say you're making a forum engine, where a *page* is a fixed buffer.
 How to safely add posts without truncation ?
 
 
-### The hard way
+### The long way
 
 ```C
 char page[PAGE_SZ];
@@ -30,19 +30,18 @@ while(1) {
     char* text = db("text");
 
     // Will null be counted ? Lookup `snprintf`...
-    // In fact it won't !
+    // No it won't
     int post_len = snprintf (
         // Keep track
         page + page_len,
         // Will it be null-terminated ? Lookup `snprintf`...
-        // In fact it will !
+        // Yes it will
         PAGE_SZ - page_len, 
         "<div>%s<br>%s</div>", user, text
     );
     
-    // Don't forget that '+1' !
+    // Don't forget that '+1'
     if (page_len + post_len + 1 > PAGE_SZ) {
-        // Does not fit. Undo.
         page[page_len] = 0;
         break;
     }
