@@ -304,7 +304,12 @@ split_callback (const char* tok, const size_t len, void* ctx)
 
     if (!c->cnt) return; //should not happen - todo alert
 
-    stx_t out = stx_from(tok, len);
+    stx_t out;
+    if (len) {
+        out = stx_from(tok, len);
+    } else {
+        out = stx_from("", 0);
+    }
     *(c->out++) = out;
     --c->cnt;
 }
