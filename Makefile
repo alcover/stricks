@@ -1,12 +1,12 @@
 CC = gcc
-FLAGS = -std=c11 -Wall -g -O2
+FLAGS = -std=c11 -Wall -g
 COMP = $(CC) $(FLAGS) -lm -c $< -o $@
-LINK = $(CC) $(FLAGS) -lm $^ -o $@
+LINK = $(CC) $(FLAGS)  $^ -o $@
 
-lib = bin/libstx
+lib  = bin/libstx
 unit = bin/unit
-example = example/forum
 test = bin/test
+example = example/forum
 
 .PHONY: all check clean
 

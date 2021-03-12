@@ -11,7 +11,7 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #include <stdbool.h>
 
 /* display warnings (double free, truncation,...) */
-#define STX_WARNINGS
+// #define STX_WARNINGS
 
 #ifndef STX_MALLOC
 #define STX_MALLOC malloc
