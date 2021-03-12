@@ -24,7 +24,7 @@ str_split (const char *str, const char* sep,
         if (!strncmp(str+end, sep, seplen)) {
             callback (str + beg, end - beg, ctx);
             beg = end + seplen;
-            end = beg;
+            end = beg - 1;
         }
     }
 
