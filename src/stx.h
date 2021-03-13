@@ -10,16 +10,20 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #include <string.h>
 #include <stdbool.h>
 
-/* display warnings (double free, truncation,...) */
-// #define STX_WARNINGS
-
 #ifndef STX_MALLOC
 #define STX_MALLOC malloc
+#endif
+
+#ifndef STX_REALLOC
+#define STX_REALLOC realloc
 #endif
 
 #ifndef STX_FREE
 #define STX_FREE free
 #endif
+
+// Print warnings : double-free, truncation, etc..
+// #define STX_WARNINGS
 
 typedef char* stx_t;
 

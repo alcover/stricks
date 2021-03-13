@@ -385,7 +385,7 @@ resize (stx_t *ps, const size_t newcap)
     void* newhead;
 
     if (sametype)
-        newhead = realloc ((void*)head, MEMSZ(type, newcap));
+        newhead = STX_REALLOC ((void*)head, MEMSZ(type, newcap));
     else {
         newhead = STX_MALLOC (MEMSZ(newtype, newcap));
     }
