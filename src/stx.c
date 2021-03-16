@@ -1,5 +1,5 @@
 /*
-Stricks v0.2.0
+Stricks v0.2.1
 Copyright (C) 2021 - Francois Alcover <francois[@]alcover.fr>
 NO WARRANTY EXPRESSED OR IMPLIED.
 */
@@ -97,8 +97,9 @@ dup (const stx_t s);
 //==== PUBLIC =======================================================================
 
 const stx_t 
-stx_new (const size_t cap)
+stx_new (const size_t mincap)
 {
+    const size_t cap = max(mincap, STX_MIN_CAP);
     const Type type = (cap >= 256) ? TYPE4 : TYPE1;
 
     void* head = STX_MALLOC(MEMSZ(type, cap));
@@ -119,12 +120,12 @@ stx_new (const size_t cap)
 const stx_t
 stx_from (const char* src, const size_t n)
 {
-    if (!src) return NULL;
+    if (!src) return stx_new(n);
     
     const size_t len = n ? strnlen(src,n) : strlen(src);
-    if (!len) return NULL;
-
+    // if (!len) return NULL;
     stx_t ret = stx_new(len);
+
     memcpy(ret, src, len);
     SETPROP(ret, len, len);
 
@@ -302,33 +303,51 @@ stx_trim (const stx_t s)
 }
 
 
-typedef struct {stx_t* out; int cnt;} split_ctx;
+typedef struct {stx_t* list; int cnt;} split_ctx;
 
 static void 
 split_callback (const char* tok, const size_t len, void* ctx)
 {
     split_ctx* c = ctx;
 
-    if (!c->cnt) return; //should not happen - todo alert
+    if (!c->cnt) {
+        ERR("split_callback: smth wrong");
+        return; 
+    }
 
-    stx_t out = stx_from(tok, len);
-    *(c->out++) = out;
+    stx_t out = len ? stx_from(tok, len) : stx_from("", 0);
+
+    *(c->list++) = out;
     --c->cnt;
 }
 
-// sec ?
+
+// sentinel to allow for `while(part++)`
 stx_t*
 stx_split (const void* s, const char* sep, unsigned int* outcnt)
 {
-    const uint cnt = str_count_str(s,sep) + 1;
-    stx_t* ret = STX_MALLOC(cnt * sizeof(*ret)); 
-    stx_t* ptr = ret;
-    split_ctx ctx = {ptr,cnt};
+    if (!s) {
+        *outcnt = 0;
+        return NULL;
+    }
 
-    str_split (s, sep, split_callback, &ctx);
+    const unsigned int cnt = str_count_str(s,sep) + 1;
+    
+    // ? malloc+print => valgrind "Conditional jump or move depends on uninitialised value(s)"
+    stx_t* list = STX_MALLOC((cnt+1) * sizeof(*list)); // +1: sentinel
+    // stx_t* list = STX_CALLOC((cnt+1), sizeof(*list)); // +1: sentinel
+
+    if (sep) {
+        split_ctx ctx = {list,cnt};
+        str_split (s, sep, split_callback, &ctx);
+    } else {
+        *list = stx_from(s,0); // stx_split("foo", NULL) -> "foo"
+    }
 
     *outcnt = cnt;
-    return ret;
+    list[cnt] = NULL; // sentinel
+
+    return list;
 }
 
 //==== PRIVATE =======================================================================

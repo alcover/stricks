@@ -10,6 +10,9 @@
 
 #include "stx.h"
 #include "log.h"
+#include "util.c"
+
+//======================================================================================
 
 #define assert_cmp(a,b) assert(!strcmp((a),(b))) 
 
@@ -17,6 +20,25 @@
 assert (stx_cap(s) == cap); \
 assert (stx_len(s) == len); \
 assert (!strcmp(s, data))  
+
+
+#define ASSERT(a, b) { \
+    if (a!=b) { \
+        fprintf(stderr, "%d: assertion %s==%s failed: %s==%d %s==%d\n", \
+            __LINE__, #a, #b, #a, (int)a, #b, (int)b); \
+        exit(1); \
+    } \
+}
+
+#define ASSERT_CMP(stra, strb) { \
+    if (strcmp(stra, strb)) { \
+        fprintf(stderr, "%d: assertion %s==%s failed: %s=='%s' %s=='%s'\n", \
+            __LINE__, #stra, #strb, #stra, stra, #strb, strb); \
+        exit(1); \
+    } \
+}
+
+//======================================================================================
 
 #define CAP 100  
 
@@ -35,14 +57,29 @@ const char* big = BIG;
 
 void new() 
 { 
-    stx_t s = stx_new(CAP);
+    stx_t s;
+    s = stx_new(0);
+    ASSERT_PROPS (s, STX_MIN_CAP, 0, ""); 
+    s = stx_new(CAP);
     ASSERT_PROPS (s, CAP, 0, ""); 
     stx_free(s);
 }
 
 void from() 
 {
-    stx_t s = stx_from(foo, 0);
+    stx_t s;
+    
+    s = stx_from (NULL, 0);
+    ASSERT_PROPS (s, STX_MIN_CAP, 0, ""); 
+    s = stx_from (NULL, CAP);
+    ASSERT_PROPS (s, CAP, 0, ""); 
+
+    s = stx_from ("", 0);
+    ASSERT_PROPS (s, STX_MIN_CAP, 0, ""); 
+    s = stx_from ("", CAP);
+    ASSERT_PROPS (s, STX_MIN_CAP, 0, ""); //!
+
+    s = stx_from(foo, 0);
     ASSERT_PROPS (s, foolen, foolen, foo); 
     s = stx_from(foo, foolen-1);
     ASSERT_PROPS (s, foolen-1, foolen-1, "fo");     
@@ -67,17 +104,14 @@ void append()
     APPEND_INIT (foolen,    foo, 0,         foolen,     foolen, foo);
     APPEND_INIT (foolen+1,  foo, 0,         foolen,     foolen, foo);
     APPEND_INIT (foolen-1,  foo, 0,         -foolen,    0,      "");
-
     // exact count
     APPEND_INIT (foolen,    foo, foolen,    foolen,     foolen, foo);
     APPEND_INIT (foolen+1,  foo, foolen,    foolen,     foolen, foo);
     APPEND_INIT (foolen-1,  foo, foolen,    -foolen,    0,      "");
-
     // under count
     APPEND_INIT (foolen,    foo, foolen-1, foolen-1,    foolen-1,   "fo");
     APPEND_INIT (foolen+1,  foo, foolen-1, foolen-1,    foolen-1,   "fo");
     APPEND_INIT (foolen-1,  foo, foolen-1, foolen-1,    foolen-1,   "fo");
-
     // over count
     APPEND_INIT (foolen,    foo, foolen+1,  foolen,      foolen, foo);
     APPEND_INIT (foolen+1,  foo, foolen+1,  foolen,      foolen, foo);
@@ -99,17 +133,14 @@ void append()
     APPEND_MORE (foobarlen+1, foo, bar, 0, barlen, foobarlen, foobar);
     APPEND_MORE (foobarlen  , foo, bar, 0, barlen, foobarlen, foobar);
     APPEND_MORE (foobarlen-1, foo, bar, 0, -foobarlen, foolen, foo);
-
     // exact count
     APPEND_MORE (foobarlen+1, foo, bar, barlen, barlen, foobarlen, foobar);
     APPEND_MORE (foobarlen  , foo, bar, barlen, barlen, foobarlen, foobar);
     APPEND_MORE (foobarlen-1, foo, bar, barlen, -foobarlen, foolen, foo);
-
     // under count
     APPEND_MORE (foobarlen+1, foo, bar, barlen-1, barlen-1, foobarlen-1, "fooba");
     APPEND_MORE (foobarlen  , foo, bar, barlen-1, barlen-1, foobarlen-1, "fooba");
     APPEND_MORE (foobarlen-1, foo, bar, barlen-1, barlen-1, foobarlen-1, "fooba");
-    
     // over count
     APPEND_MORE (foobarlen+1, foo, bar, barlen+1, barlen,   foobarlen,  foobar);
     APPEND_MORE (foobarlen  , foo, bar, barlen+1, barlen,   foobarlen,  foobar);
@@ -139,11 +170,11 @@ void append_alloc()
     APPENDA_INIT (foolen  , foo, foolen, foolen, foo);
     APPENDA_INIT (foolen+1, foo, foolen, foolen, foo);
     APPENDA_INIT (foolen-1, foo, foolen, foolen, foo);
-
+    // under count
     APPENDA_INIT (foolen  , foo, foolen-1, foolen-1, "fo");
     APPENDA_INIT (foolen+1, foo, foolen-1, foolen-1, "fo");
     APPENDA_INIT (foolen-1, foo, foolen-1, foolen-1, "fo");
-
+    // over count
     APPENDA_INIT (foolen  , foo, foolen+1, foolen, foo);
     APPENDA_INIT (foolen+1, foo, foolen+1, foolen, foo);
     APPENDA_INIT (foolen-1, foo, foolen+1, foolen, foo);
@@ -259,24 +290,107 @@ void trim()
     ASSERT_PROPS(s, CAP, foolen, foo);
 }
 
-// todo cases
-void split()
-{
-    stx_t s = stx_from("foo, foo", 0);
-    unsigned cnt = 0;
-    stx_t* list = stx_split(s, ", ", &cnt);
-    // LOGVI(cnt);
-    assert(cnt==2);
 
-    for (int i = 0; i < cnt; ++i) {
-        stx_t elt = list[i];
-        // printf("tok %s\n", elt); fflush(stdout);
-        ASSERT_PROPS(elt, foolen, foolen, foo);
+void str_count_str_()
+{
+    assert (str_count_str(NULL, NULL) == 0);
+    assert (str_count_str(NULL, "") == 0);
+    assert (str_count_str(NULL, "f") == 0);
+
+    assert (str_count_str("", NULL) == 0);
+    assert (str_count_str("", "") == 0);
+    assert (str_count_str("", "f") == 0);
+    
+    assert (str_count_str("f", NULL) == 0);
+    assert (str_count_str("f", "") == 0);
+    assert (str_count_str("f", "o") == 0);
+    assert (str_count_str("f", "f") == 1);
+    assert (str_count_str("f", "ff") == 0);
+
+    assert (str_count_str("foo", "o") == 2);
+    assert (str_count_str("foo", "oo") == 1);
+    assert (str_count_str("fooool", "oo") == 2);
+    assert (str_count_str("f,o,o", ",") == 2);
+}
+
+
+void str_split_cb (const char* tok, size_t len, void* ctx)
+{
+    char*** ppart = (char***)ctx;
+    char* part = **ppart;
+    strncpy (part, tok, len);
+    ++(*ppart);
+}
+
+void str_split_unit (const char* str, const char* sep, int expcnt, char* expparts[])
+{
+    if (!str||!sep) return;
+
+    const size_t cnt = str_count_str(str, sep) + 1;
+    ASSERT(cnt,expcnt);
+
+    char* dst[100] = {NULL};
+    for (int i = 0; i < expcnt; ++i) {
+        dst[i] = calloc(1,100); // bof
+    }
+
+    char** ppart = dst;
+    str_split (str, sep, str_split_cb, &ppart);
+
+    for (int i = 0; i < expcnt; ++i) {
+        assert_cmp(dst[i], expparts[i]);
     }
 }
 
+void str_split_()
+{
+    // str_split_unit (NULL, NULL, 1, NULL);
+    // str_split_unit (NULL, "", 1111, (char*[]){"not reached"});
+    // str_split_unit ("", NULL, 1111, (char*[]){"not reached"});
+    // str_split_unit ("abbc", "", 4, (char*[]){"a","b","b","c"});
+    str_split_unit ("abbc", "", 1, (char*[]){"abbc"});
+    str_split_unit ("a,b", ",", 2, (char*[]){"a","b"});
+    str_split_unit ("abbc", "b", 3, (char*[]){"a","","c"});
+}
+
+
+
+
+void split_unit (const char* str, const char* sep, int expcnt, char* expparts[])
+{
+    unsigned cnt = 0;
+    stx_t* list = stx_split(str, sep, &cnt);
+
+    ASSERT(cnt,expcnt);
+
+    for (int i = 0; i < cnt; ++i) {
+        const stx_t elt = list[i];
+        const char* exp = expparts[i];
+        const size_t explen = strlen(exp);
+        // ASSERT_PROPS (elt, STX_MIN_CAP, 1, explen);
+        ASSERT (stx_cap(elt), max(STX_MIN_CAP,explen));
+        ASSERT (stx_len(elt), explen);
+        ASSERT_CMP (elt, exp);
+    }
+}
+
+
+void split()
+{
+    split_unit ("", NULL, 1, (char*[]){""});
+    split_unit ("", "", 1, (char*[]){""});
+    split_unit ("", ",", 1, (char*[]){""});
+
+    split_unit ("ab", NULL, 1, (char*[]){"ab"});
+    split_unit ("ab", "", 1, (char*[]){"ab"});
+    split_unit ("a,b", ",", 2, (char*[]){"a","b"});
+
+    split_unit ("a,,c", ",", 3, (char*[]){"a","","c"});
+}
+
 //=======================================================================================
-#define U(name) name(); printf("passed %s\n", #name)
+
+#define U(name) {name(); printf("passed %s\n", #name); fflush(stdout);}
 
 int main()
 {
@@ -291,6 +405,8 @@ int main()
     U(free_);
     U(equal);
     U(trim);
+    U(str_count_str_);
+    U(str_split_);
     U(split);
 
     printf ("unit tests OK\n");

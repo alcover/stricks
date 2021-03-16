@@ -1,5 +1,5 @@
 /*
-Stricks v0.2.0
+Stricks v0.2.1
 Copyright (C) 2021 - Francois Alcover <francois[@]alcover.fr>
 NO WARRANTY EXPRESSED OR IMPLIED.
 */
@@ -14,6 +14,10 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #define STX_MALLOC malloc
 #endif
 
+#ifndef STX_CALLOC
+#define STX_CALLOC calloc
+#endif
+
 #ifndef STX_REALLOC
 #define STX_REALLOC realloc
 #endif
@@ -24,6 +28,8 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 
 // Print warnings : double-free, truncation, etc..
 // #define STX_WARNINGS
+
+#define STX_MIN_CAP 2
 
 typedef char* stx_t;
 

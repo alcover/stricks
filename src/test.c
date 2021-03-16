@@ -19,12 +19,14 @@ const char* huge = BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG BIG B
 
 int main() {
 
-unsigned int count;
-stx_t* results = stx_split("baaaad", "aa", &count);
+int a = max(2,1+3);
+LOGVI(a);
+// unsigned int count;
+// stx_t* results = stx_split("baaaad", "aa", &count);
 
-for (int i = 0; i < count; ++i) {
-    printf("%s\n", results[i]);
-}
+// for (int i = 0; i < count; ++i) {
+//     printf("%s\n", results[i]);
+// }
 
 	// stx_t s = stx_from("foo, bar", 0);
 	// unsigned cnt = 0;

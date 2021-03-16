@@ -1,40 +1,64 @@
-static inline size_t
-strnlen (const char *s, size_t maxlen)
-{
-	size_t len;
+ #define max(a,b) ({ \
+__typeof__ (a) _a = (a); \
+__typeof__ (b) _b = (b); \
+_a > _b ? _a : _b; })
 
-	for (len = 0; len < maxlen; ++len)
+static inline size_t
+strnlen (const char *s, size_t n)
+{
+	size_t len = 0;
+
+	for (; len < n; ++len)
 		if (!s[len]) break;
 
 	return len;
 }
 
 
+static inline size_t
+str_count_str (const char *str, const char* tok)
+{
+	if (!str||!tok) return 0;
 
-// alco - unverified
+	const size_t toklen = strlen(tok);
+	if (!toklen) return 0;
+	
+	size_t cnt = 0;
+	
+	while ((str = strstr(str,tok))) {
+		++cnt;
+		str += toklen;
+	}
+
+	return cnt;
+}
+
+
 static inline void 
 str_split (const char *str, const char* sep, 
 	void(*callback)(const char* tok, size_t len, void* ctx), 
 	void *ctx)
 {
-    const size_t seplen = strlen(sep);
-    unsigned int beg = 0, end = 0;
+	if (!str||!sep) return;
 
-    for (; str[end]; end++) {
-        if (!strncmp(str+end, sep, seplen)) {
-            callback (str + beg, end - beg, ctx);
-            beg = end + seplen;
+    const size_t seplen = strlen(sep);
+
+    if (!seplen) {
+    	callback(str, strlen(str), ctx); // ?
+    	return;
+    }
+
+    const char *beg = str, *end = str;
+
+    while (*end) {
+        if (!strncmp (end, sep, seplen)) {
+            callback (beg, end - beg, ctx);
+            end += seplen;
+            beg = end;
+        } else {
+        	++end;
         }
     }
 
-    callback (str + beg, end - beg, ctx);
-}
-
-// alco - unverified
-static inline int
-str_count_str (const char *str, const char* tok)
-{
-	int ret = 0;
-	for (const char* tmp = str; (tmp = strstr(tmp,tok)); ++tmp, ++ret);
-	return ret;
+    callback (beg, end - beg, ctx); // last part
 }
