@@ -43,16 +43,16 @@ assert (!strcmp(s, data))
 #define CAP 100  
 
 const char* foo = "foo";
-const char* bar = "bar";
-const char* foobar = "foobar";
 const size_t foolen = 3;
+const char* bar = "bar";
 const size_t barlen = 3;
+const char* foobar = "foobar";
 const size_t foobarlen = 6;
 
 #define X16(s) #s #s #s #s #s #s #s #s #s #s #s #s #s #s #s #s 
 #define BIG X16(aaaabbbbccccdddd)
 #define biglen 256
-static_assert(strlen(BIG)==biglen, "biglen != 256");
+// static_assert(strlen(BIG)==biglen, "biglen != 256");
 const char* big = BIG;
 
 void new() 
@@ -386,6 +386,28 @@ void split()
     split_unit ("a,b", ",", 2, (char*[]){"a","b"});
 
     split_unit ("a,,c", ",", 3, (char*[]){"a","","c"});
+}
+
+
+void story()
+{
+    stx_t a = stx_new(foolen);
+    stx_append(a,big); //nop
+    stx_append(a,foo);
+    stx_append_alloc(&a,bar); //foobar
+
+    stx_t b = stx_from(foo,0);
+    stx_t c = stx_dup(b);
+    stx_resize(&c,foobarlen);
+    stx_append_format(c,"%s",bar); //foobar
+
+    // append nothing
+    stx_reset(a);
+    stx_append(a,"");
+    stx_append(c,a);
+
+    assert_cmp(a,c);
+    assert(stx_equal(a,c));
 }
 
 //=======================================================================================
