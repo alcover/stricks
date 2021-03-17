@@ -20,11 +20,8 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #include "log.h"
 #include "util.c"
 
-typedef unsigned char uchar;
-typedef unsigned int uint;
-
 typedef struct {   
-    uint8_t  cap;  //capacity
+    uint8_t  cap;
     uint8_t  len; 
 } Head1;
 
@@ -34,8 +31,8 @@ typedef struct {
 } Head4;
 
 typedef struct {   
-    uchar cookie; 
-    uchar flags;
+    uint8_t cookie; 
+    uint8_t flags;
     char data[]; 
 } Attr;
 
@@ -51,8 +48,8 @@ static_assert ((1<<TYPE4) == sizeof(Head4), "bad TYPE4");
 #define TYPE_BITS 2
 #define TYPE_MASK ((1<<TYPE_BITS)-1)
 
-#define COOKIE(s) (((uchar*)(s))[-2])
-#define FLAGS(s)  (((uchar*)(s))[-1])
+#define COOKIE(s) (((uint8_t*)(s))[-2])
+#define FLAGS(s)  (((uint8_t*)(s))[-1])
 #define TYPE(s) (FLAGS(s) & TYPE_MASK)
 #define TYPESZ(type) (1<<type)
 #define MEMSZ(type,cap) (TYPESZ(type) + sizeof(Attr) + cap + 1)
@@ -123,7 +120,6 @@ stx_from (const char* src, const size_t n)
     if (!src) return stx_new(n);
     
     const size_t len = n ? strnlen(src,n) : strlen(src);
-    // if (!len) return NULL;
     stx_t ret = stx_new(len);
 
     memcpy(ret, src, len);
@@ -259,8 +255,8 @@ stx_show (const stx_t s)
     void* head = HEAD(s);
     Type type = TYPE(s);
 
-    #define SHOW_FMT "cap:%zu len:%zu cookie:%d flags:%d data:'%s'\n"
-    #define SHOW_ARGS (size_t)(h->cap), (size_t)(h->len), (uchar)s[-2], (uchar)s[-1], s
+    #define SHOW_FMT "cap:%zu len:%zu cookie:%x flags:%x data:'%s'\n"
+    #define SHOW_ARGS (size_t)(h->cap), (size_t)(h->len), ((uint8_t*)s)[-2], ((uint8_t*)s)[-1], s
 
     switch(type){
         case TYPE4: {
