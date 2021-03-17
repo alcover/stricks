@@ -1,26 +1,25 @@
 CC = gcc
 FLAGS = -std=c11 -Wall -g
-OPTIM = -O3
-COMP = $(CC) $(FLAGS) $(OPTIM) -lm -c $< -o $@
-LINK = $(CC) $(FLAGS)  $^ -o $@
+OPTIM = -O1
+COMP = $(CC) $(FLAGS) -lm -c $< -o $@
+LINK = $(CC) $(FLAGS) $^ -o $@
 
-lib  = bin/libstx
-unit = bin/unit
-test = bin/test
-example = example/forum
-bench = bin/bench
-sds = bin/sds
+lib		= bin/libstx
+unit 	= bin/unit
+test 	= bin/test
+bench 	= bin/bench
+sds 	= bin/sds
+example	= example/forum
 
 .PHONY: all check clean
 
 all: $(lib) $(unit) $(test) $(bench)
 
 $(lib): src/stx.c src/stx.h src/util.c
-	$(COMP)
+	$(COMP) $(OPTIM)
 	
 $(unit): src/unit.c $(lib)
 	$(LINK)
-	@ ./$(unit)
 
 $(example): example/forum.c $(lib)
 	$(LINK)
@@ -29,10 +28,10 @@ $(test): src/test.c $(lib)
 	$(LINK)
 
 $(bench): src/bench.c $(lib) $(sds)
-	$(CC) -std=c11 -Wall -lm $^ -o $@
+	$(COMP)
 
 $(sds): sds/sds.c sds/sds.h
-	$(CC) -std=c99 -Wall $(OPTIM) -c $< -o $@ -O2
+	$(CC) -std=c99 -Wall $(OPTIM) -c $< -o $@
 
 check:
 	@ ./$(unit)
