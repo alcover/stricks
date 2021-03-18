@@ -1,7 +1,7 @@
 CC = gcc
 FLAGS = -std=c11 -Wall -g
 OPTIM = -O0
-COMP = $(CC) $(FLAGS) -lm -c $< -o $@
+COMP = $(CC) $(FLAGS) -c $< -o $@
 LINK = $(CC) $(FLAGS) -lm $^ -o $@
 
 lib		= bin/libstx
