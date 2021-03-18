@@ -2,7 +2,7 @@ CC = gcc
 FLAGS = -std=c11 -Wall -g
 OPTIM = -O0
 COMP = $(CC) $(FLAGS) -c $< -o $@
-LINK = $(CC) $(FLAGS) -lm $^ -o $@
+LINK = $(CC) $(FLAGS) $^ -o $@
 
 lib		= bin/libstx
 unit 	= bin/unit
@@ -28,7 +28,7 @@ $(test): src/test.c $(lib)
 	$(LINK)
 
 $(bench): src/bench.c $(lib) $(sds)
-	$(LINK)
+	$(LINK) -lm
 
 $(sds): sds/sds.c sds/sds.h
 	$(CC) -std=c99 -Wall $(OPTIM) -c $< -o $@
