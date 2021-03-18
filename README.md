@@ -126,9 +126,10 @@ printf("%s\n", s);
 
 # Security
 
-No memory fault should be possible through the Stricks API.  
+Stricks aims at not letting memory faults happen through the API.  
 All methods check for a valid *Header*.  
-If not found, no action is taken and a *falsy* value gets returned.  
+If not valid, no action is taken and a *falsy* value gets returned.  
+
 (See *[stx_free](#stx_free)*)
 
 
@@ -243,9 +244,9 @@ stx_show(s);
 ```C
 void stx_free (stx_t s)
 ```
-Releases the underlying SBlock.  
+Releases the enclosing SBlock.  
 
-:cake: **Security** : Once the SBlock is freed, **no use-after-free or double-free**  should be possible through the Strick API :  
+:cake: **Security** : Once the SBlock is freed, **no use-after-free or double-free** should be possible through the Strick API :  
 
 ```C
 stx_t s = stx_new(16);

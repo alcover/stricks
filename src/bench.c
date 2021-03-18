@@ -22,7 +22,7 @@
 }
 
 // 1<<20 = 1.048.576
-#define ITER (1<<2)
+#define DEFAULT_ITER (1<<24)
 int iter;
 
 const char* foo = "foo";
@@ -44,7 +44,14 @@ void stx_app()
 {
 	stx_t s = stx_new(1);
 	stx_append(s, foo);
-	// stx_free(s);
+	stx_free(s);
+}
+
+void sds_app()
+{
+	sds s = sdsnewlen(SDS_NOINIT, 10);
+	s = sdscat(s, foo);
+	sdsfree(s);
 }
 
 void stx_grow()
@@ -60,13 +67,6 @@ void stx_grow()
 	ASSERT (stx_len(s), foolen*iter);
 	
 	stx_free(s);
-}
-
-void sds_app()
-{
-	sds s = sdsnewlen(SDS_NOINIT, 10);
-	sdscat(s, foo);
-	// sdsfree(s);  // free(): double free detected in tcache 2 !!
 }
 
 void sds_grow()
@@ -91,13 +91,16 @@ void sds_grow()
 
 int main (int argc, char **argv) 
 {
-	iter = argc ? atoi(argv[1]) : ITER;
+	if (argc > 1)
+		iter = atoi(argv[1]);
+	else
+		iter = DEFAULT_ITER;
 	
-	BENCH (BOLD "STX" RESET " append", stx_app, iter);
 	BENCH ("SDS append", sds_app, iter);
+	BENCH ("STX append", stx_app, iter);
 
-	BENCH ("STX grow", stx_grow, 1);
 	BENCH ("SDS grow", sds_grow, 1);
-
+	BENCH ("STX grow", stx_grow, 1);
+	
     return 0;
 }

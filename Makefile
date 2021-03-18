@@ -1,8 +1,8 @@
 CC = gcc
 FLAGS = -std=c11 -Wall -g
-OPTIM = -O1
+OPTIM = -O0
 COMP = $(CC) $(FLAGS) -lm -c $< -o $@
-LINK = $(CC) $(FLAGS) $^ -o $@
+LINK = $(CC) $(FLAGS) -lm $^ -o $@
 
 lib		= bin/libstx
 unit 	= bin/unit
@@ -11,7 +11,7 @@ bench 	= bin/bench
 sds 	= bin/sds
 example	= example/forum
 
-.PHONY: all check clean
+.PHONY: all check clean bench
 
 all: $(lib) $(unit) $(test) $(bench)
 
@@ -28,13 +28,16 @@ $(test): src/test.c $(lib)
 	$(LINK)
 
 $(bench): src/bench.c $(lib) $(sds)
-	$(COMP)
+	$(LINK)
 
 $(sds): sds/sds.c sds/sds.h
 	$(CC) -std=c99 -Wall $(OPTIM) -c $< -o $@
 
 check:
 	@ ./$(unit)
+
+bench:
+	@ ./$(bench)
 
 clean:
 	@ rm -f bin/* $(example)
