@@ -293,24 +293,24 @@ void trim()
 
 void str_count_str_()
 {
-    assert (str_count_str(NULL, NULL) == 0);
-    assert (str_count_str(NULL, "") == 0);
-    assert (str_count_str(NULL, "f") == 0);
+    assert (str_count(NULL, NULL) == 0);
+    assert (str_count(NULL, "") == 0);
+    assert (str_count(NULL, "f") == 0);
 
-    assert (str_count_str("", NULL) == 0);
-    assert (str_count_str("", "") == 0);
-    assert (str_count_str("", "f") == 0);
+    assert (str_count("", NULL) == 0);
+    assert (str_count("", "") == 0);
+    assert (str_count("", "f") == 0);
     
-    assert (str_count_str("f", NULL) == 0);
-    assert (str_count_str("f", "") == 0);
-    assert (str_count_str("f", "o") == 0);
-    assert (str_count_str("f", "f") == 1);
-    assert (str_count_str("f", "ff") == 0);
+    assert (str_count("f", NULL) == 0);
+    assert (str_count("f", "") == 0);
+    assert (str_count("f", "o") == 0);
+    assert (str_count("f", "f") == 1);
+    assert (str_count("f", "ff") == 0);
 
-    assert (str_count_str("foo", "o") == 2);
-    assert (str_count_str("foo", "oo") == 1);
-    assert (str_count_str("fooool", "oo") == 2);
-    assert (str_count_str("f,o,o", ",") == 2);
+    assert (str_count("foo", "o") == 2);
+    assert (str_count("foo", "oo") == 1);
+    assert (str_count("fooool", "oo") == 2);
+    assert (str_count("f,o,o", ",") == 2);
 }
 
 
@@ -326,7 +326,7 @@ void str_split_unit (const char* str, const char* sep, int expcnt, char* exppart
 {
     if (!str||!sep) return;
 
-    const size_t cnt = str_count_str(str, sep) + 1;
+    const size_t cnt = str_count(str, sep) + 1;
     ASSERT(cnt,expcnt);
 
     char* dst[100] = {NULL};

@@ -3,20 +3,18 @@ __typeof__ (a) _a = (a); \
 __typeof__ (b) _b = (b); \
 _a > _b ? _a : _b; })
 
+
 static inline size_t
-strnlen (const char *s, size_t n)
+strnlen (const char *s, const size_t n)
 {
 	size_t len = 0;
-
-	for (; len < n; ++len)
-		if (!s[len]) break;
-
+	for (; len < n && s[len]; ++len);
 	return len;
 }
 
 
 static inline size_t
-str_count_str (const char *str, const char* tok)
+str_count (const char *str, const char* tok)
 {
 	if (!str||!tok) return 0;
 

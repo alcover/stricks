@@ -21,8 +21,8 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #include "util.c"
 
 typedef struct {   
-    uint8_t  cap;
-    uint8_t  len; 
+    uint8_t cap;
+    uint8_t len; 
 } Head1;
 
 typedef struct {   
@@ -44,7 +44,7 @@ typedef enum {
 static_assert ((1<<TYPE1) == sizeof(Head1), "bad TYPE1");
 static_assert ((1<<TYPE4) == sizeof(Head4), "bad TYPE4");
 
-#define MAGIC 170 // 0xaa
+#define MAGIC 0xaa
 #define TYPE_BITS 2
 #define TYPE_MASK ((1<<TYPE_BITS)-1)
 
@@ -58,20 +58,18 @@ static_assert ((1<<TYPE4) == sizeof(Head4), "bad TYPE4");
 #define ATTR(head,type) ((Attr*)((char*)(head) + TYPESZ(type)))
 #define DATA(head,type) ((char*)head + TYPESZ(type) + sizeof(Attr))
 
+#define HSETCAP(head, type, val) HSETPROP(head, type, cap, val)
+#define HSETLEN(head, type, val) HSETPROP(head, type, len, val)
 #define HSETPROP(head, type, prop, val) \
 switch(type) { \
     case TYPE1: ((Head1*)head)->prop = val; break; \
     case TYPE4: ((Head4*)head)->prop = val; break; \
 } 
 
-#define HSETCAP(head, type, val) HSETPROP(head, type, cap, val)
-#define HSETLEN(head, type, val) HSETPROP(head, type, len, val)
-
-#define HGETPROP(head, type, prop) \
-((type == TYPE4) ? ((Head4*)head)->prop : ((Head1*)head)->prop)
-
 #define HGETCAP(head, type) HGETPROP(head, type, cap)
 #define HGETLEN(head, type) HGETPROP(head, type, len)
+#define HGETPROP(head, type, prop) \
+((type == TYPE4) ? ((Head4*)head)->prop : ((Head1*)head)->prop)
 
 #define HGETSPC(head, type) \
 ((type == TYPE4) ? (((Head4*)head)->cap - ((Head4*)head)->len) \
@@ -81,15 +79,10 @@ switch(type) { \
 #define GETPROP(s,prop) HGETPROP(HEAD(s), TYPE(s), prop)
 #define GETSPC(s) HGETSPC(HEAD(s), TYPE(s))
 
-
-static intmax_t 
-append (void* dst, const char* src, const size_t n, bool alloc/*, bool strict*/);
-static bool 
-resize (stx_t *ps, const size_t newcap);
-static intmax_t 
-append_format (stx_t dst, const char* fmt, va_list args);
-static stx_t
-dup (const stx_t s);
+static intmax_t append(void* dst, const char* src, const size_t n, bool alloc);
+static bool resize (stx_t *ps, const size_t newcap);
+static intmax_t append_format (stx_t dst, const char* fmt, va_list args);
+static stx_t dup (const stx_t s);
 
 //==== PUBLIC =======================================================================
 
@@ -111,7 +104,7 @@ stx_new (const size_t mincap)
     attr->data[0] = 0; 
     attr->data[cap] = 0; 
     
-    return (attr->data);
+    return attr->data;
 }
 
 const stx_t
@@ -138,7 +131,6 @@ void
 stx_reset (const stx_t s)
 {
     if (!CHECK(s)) return;
-
     SETPROP(s, len, 0);
     *s = 0;
 } 
@@ -182,7 +174,6 @@ size_t
 stx_spc (const stx_t s)
 {
     if (!CHECK(s)) return 0;
-
     return GETSPC(s);
 }
 
@@ -252,8 +243,8 @@ stx_show (const stx_t s)
 {
     if (!CHECK(s)) return;
 
-    void* head = HEAD(s);
-    Type type = TYPE(s);
+    const void* head = HEAD(s);
+    const Type type = TYPE(s);
 
     #define SHOW_FMT "cap:%zu len:%zu cookie:%x flags:%x data:'%s'\n"
     #define SHOW_ARGS (size_t)(h->cap), (size_t)(h->len), ((uint8_t*)s)[-2], ((uint8_t*)s)[-1], s
@@ -276,7 +267,7 @@ stx_show (const stx_t s)
 }
 
 
-// in-place
+// todo new fit type ?
 void 
 stx_trim (const stx_t s)
 {
@@ -299,7 +290,11 @@ stx_trim (const stx_t s)
 }
 
 
-typedef struct {stx_t* list; int cnt;} split_ctx;
+typedef struct {
+    stx_t* list; 
+    unsigned int cnt;
+} split_ctx;
+
 
 static void 
 split_callback (const char* tok, const size_t len, void* ctx)
@@ -318,7 +313,7 @@ split_callback (const char* tok, const size_t len, void* ctx)
 }
 
 
-// sentinel to allow for `while(part++)`
+// sentinel to allow `while(part++)`
 stx_t*
 stx_split (const void* s, const char* sep, unsigned int* outcnt)
 {
@@ -327,11 +322,8 @@ stx_split (const void* s, const char* sep, unsigned int* outcnt)
         return NULL;
     }
 
-    const unsigned int cnt = str_count_str(s,sep) + 1;
-    
-    // ? malloc+print => valgrind "Conditional jump or move depends on uninitialised value(s)"
+    const unsigned int cnt = str_count(s,sep) + 1;
     stx_t* list = STX_MALLOC((cnt+1) * sizeof(*list)); // +1: sentinel
-    // stx_t* list = STX_CALLOC((cnt+1), sizeof(*list)); // +1: sentinel
 
     if (sep) {
         split_ctx ctx = {list,cnt};
