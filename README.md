@@ -112,7 +112,7 @@ The above Header layout is simplified. In reality, Stricks defines several heade
 
 #### example usage
 ```C
-stx_t s = stx_from("Stricks", 0);
+stx_t s = stx_from("Stricks");
 
 stx_cata(s, " rule!");        
 printf("%s\n", s);
@@ -138,7 +138,8 @@ If not valid, no action is taken and a *falsy* value gets returned.
 # API
 
 [stx_new](#stx_new)  
-[stx_from](#stx_from)  
+[stx_from](#stx_from) 
+[stx_from_len](#stx_from_len)  
 [stx_dup](#stx_dup)  
 
 [stx_cap](#stx_cap)  
@@ -175,17 +176,39 @@ stx_t stx_new (const size_t cap)
 ```
 
 ### stx_from
-Creates a new *strick* with at most `n` bytes from `src`.  
+Creates a new *strick* by copying string `src`.  
 ```C
-stx_t stx_from (const char* src, const size_t n)
+stx_t stx_from (const char* src)
 ```
-If `n` is zero, `strlen(src)` is used.  
+Capacity is adjusted to length.
+
+```C
+stx_t s = stx_from("Stricks");
+stx_show(s); 
+// cap:7 len:7 data:'Stricks'
+
+```
+
+### stx_from_len
+Creates a new *strick* with at most `len` bytes from `src`.  
+```C
+stx_t stx_from_len (const char* src, const size_t len)
+```
+If `len > strlen(src)`, the resulting capacity is `len`.  
 Capacity gets trimmed down to length.
 
 ```C
-stx_t s = stx_from("Stricks", 0);
+stx_t s = stx_from_len("Stricks", 7);
 stx_show(s); 
 // cap:7 len:7 data:'Stricks'
+
+stx_t s = stx_from_len("Stricks", 10);
+stx_show(s); 
+// cap:10 len:7 data:'Stricks'
+
+stx_t s = stx_from_len("Stricks", 3);
+stx_show(s); 
+// cap:3 len:3 data:'Str'
 
 ```
 
@@ -304,7 +327,7 @@ stx_t* stx_split (const void* s, const char* sep, unsigned int *outcnt)
 `*outcnt` receives the returned array length.
 
 ```C
-stx_t s = stx_from("foo, bar", 0);
+stx_t s = stx_from("foo, bar");
 unsigned cnt = 0;
 
 stx_t* list = stx_split(s, ", ", &cnt);
