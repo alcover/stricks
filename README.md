@@ -2,7 +2,7 @@
 
 # Stricks
 Experimental managed C-strings library.  
-v0.2.2  
+ 
 ![CI](https://github.com/alcover/stricks/actions/workflows/ci.yml/badge.svg)  
 :orange_book: [API](#API)
 
