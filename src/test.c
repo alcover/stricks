@@ -16,6 +16,8 @@
 #define s32 x4(s8)
 #define s256 x4(s32) x4(s32)
 
+
+
 int main() {
 
 	stx_t s;
@@ -26,6 +28,13 @@ int main() {
 	s = stx_from(s256, 0);
 	stx_show(s);
 
+	const char* text = rand_str(1<<8);
+	unsigned int l=0;
+	stx_t* list = stx_split(text, "a", &l);
+	
+	LOG(text); puts("\n");
+	for (int i = 0; i < l; ++i)
+		printf("%s\n", list[i]);
 
     return 0;
 }
