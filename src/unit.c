@@ -1,3 +1,5 @@
+// todo : free() all instances
+
 // Unit tests of public methods
 
 #include <stdio.h>
@@ -238,6 +240,41 @@ void free_()
     assert (0 == stx_append_count_alloc (&s, bar, 3));
 }
 
+
+void resize()
+{
+    stx_t s;
+
+    s = stx_new(CAP);
+    stx_resize(&s, 0);
+    ASSERT_PROPS (s, CAP, 0, ""); 
+
+    s = stx_new(CAP);
+    stx_resize(&s, 1);
+    ASSERT_PROPS (s, 1, 0, ""); 
+
+    s = stx_new(CAP);
+    stx_resize(&s, CAP);
+    ASSERT_PROPS (s, CAP, 0, ""); 
+
+    s = stx_new(CAP);
+    stx_resize(&s, CAP+1);
+    ASSERT_PROPS (s, CAP+1, 0, ""); 
+
+    s = stx_new(CAP);
+    stx_append(s,foo);
+    stx_resize(&s, 2);
+    ASSERT_PROPS (s, 2, 2, "fo"); 
+
+    s = stx_new(CAP);
+    stx_append(s,foo);
+    stx_resize(&s, foolen+1);
+    ASSERT_PROPS (s, foolen+1, foolen, foo); 
+
+
+    stx_free(s);
+}
+
 void reset()
 {
     stx_t s = stx_new(CAP);
@@ -423,6 +460,7 @@ int main()
     U(append_fmt);
     U(dup);
     U(reset);
+    U(resize);
     U(check);
     U(free_);
     U(equal);
