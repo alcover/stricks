@@ -1,5 +1,5 @@
 CC = gcc
-FLAGS = -std=c11 -Wall -g
+FLAGS = -std=c11 -Wall -Wno-unused-function -g
 OPTIM = -O0
 COMP = $(CC) $(FLAGS) -c $< -o $@
 LINK = $(CC) $(FLAGS) $^ -o $@
@@ -18,8 +18,9 @@ all: $(lib) $(unit) $(test) $(bench)
 $(lib): src/stx.c src/stx.h src/util.c
 	$(COMP) $(OPTIM)
 	
-$(unit): src/unit.c $(lib)
-	$(LINK)
+$(unit): src/unit.c $(lib) src/util.c
+# 	$(LINK)
+	$(CC) $(FLAGS) src/unit.c $(lib) -o $@
 
 $(example): example/forum.c $(lib)
 	$(LINK)
