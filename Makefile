@@ -13,19 +13,15 @@ example	= example/forum
 
 .PHONY: all check clean bench
 
-all: $(lib) $(unit) $(test) $(bench)
+all: $(lib) $(unit) $(bench)
 
 $(lib): src/stx.c src/stx.h src/util.c
 	$(COMP) $(OPTIM)
 	
 $(unit): src/unit.c $(lib) src/util.c
-# 	$(LINK)
 	$(CC) $(FLAGS) src/unit.c $(lib) -o $@
 
 $(example): example/forum.c $(lib)
-	$(LINK)
-
-$(test): src/test.c $(lib)
 	$(LINK)
 
 $(bench): src/bench.c $(lib) $(sds)
@@ -33,6 +29,9 @@ $(bench): src/bench.c $(lib) $(sds)
 
 $(sds): sds/sds.c sds/sds.h
 	$(CC) -std=c99 -Wall $(OPTIM) -c $< -o $@
+
+$(test): src/test.c $(lib)
+	$(LINK)
 
 check:
 	@ ./$(unit)
