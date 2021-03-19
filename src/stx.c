@@ -108,17 +108,36 @@ stx_new (const size_t mincap)
 }
 
 const stx_t
-stx_from (const char* src, const size_t n)
+stx_from (const char* src)
 {
-    if (!src) return stx_new(n);
-    
-    const size_t len = n ? strnlen(src,n) : strlen(src);
-    stx_t ret = stx_new(len);
+    if (!src) return stx_new(STX_MIN_CAP);
 
-    memcpy(ret, src, len);
-    SETPROP(ret, len, len);
+    const size_t len = strlen(src);
+    stx_t ret = stx_new(len);
+    
+    memcpy (ret, src, len);
+    SETPROP (ret, len, len);
 
     return ret;
+}
+
+// todo optm strncpy_s ?
+const stx_t
+stx_from_len (const char* src, const size_t len)
+{
+    stx_t dst = stx_new(len);
+    if (!src) return dst;
+    
+    const char* s = src;
+    char* d = dst;
+    size_t stock = len;
+
+    for (; *s && stock; --stock) 
+        *d++ = *s++;
+    
+    SETPROP (dst, len, len-stock);
+
+    return dst;
 }
 
 const stx_t
@@ -313,7 +332,7 @@ split_callback (const char* tok, const size_t len, void* ctx)
         return; 
     }
 
-    stx_t out = len ? stx_from(tok, len) : stx_from("", 0);
+    stx_t out = len ? stx_from_len(tok, len) : stx_from_len("", 0);
 
     *(c->list++) = out;
     --c->cnt;
@@ -336,7 +355,7 @@ stx_split (const void* s, const char* sep, unsigned int* outcnt)
         split_ctx ctx = {list,cnt};
         str_split (s, sep, split_callback, &ctx);
     } else {
-        *list = stx_from(s,0); // stx_split("foo", NULL) -> "foo"
+        *list = stx_from(s); // stx_split("foo", NULL) -> "foo"
     }
 
     *outcnt = cnt;

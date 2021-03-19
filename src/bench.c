@@ -57,7 +57,7 @@ void sds_app()
 
 void stx_grow()
 {
-	stx_t s = stx_from("",0);
+	stx_t s = stx_from("");
 
 	for (int i=0; i<iter; ++i) 
 		stx_append_alloc(&s, foo);

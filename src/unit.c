@@ -74,26 +74,45 @@ void from()
 {
     stx_t s;
     
-    s = stx_from (NULL, 0);
+    s = stx_from (NULL);
     ASSERT_PROPS (s, STX_MIN_CAP, 0, ""); 
-    s = stx_from (NULL, CAP);
-    ASSERT_PROPS (s, CAP, 0, ""); 
 
-    s = stx_from ("", 0);
+    s = stx_from ("");
     ASSERT_PROPS (s, STX_MIN_CAP, 0, ""); 
-    s = stx_from ("", CAP);
-    ASSERT_PROPS (s, STX_MIN_CAP, 0, ""); //!
 
-    s = stx_from(foo, 0);
-    ASSERT_PROPS (s, foolen, foolen, foo); 
-    s = stx_from(foo, foolen-1);
-    ASSERT_PROPS (s, foolen-1, foolen-1, "fo");     
-    s = stx_from(foo, foolen+1);
+    s = stx_from(foo);
     ASSERT_PROPS (s, foolen, foolen, foo); 
 
     stx_free(s);
 }
 
+void from_len() 
+{
+    stx_t s;
+
+    s = stx_from_len (foo, foolen);
+    ASSERT_PROPS (s, foolen, foolen, foo); 
+
+    s = stx_from_len (foo, foolen-1);
+    ASSERT_PROPS (s, foolen-1, foolen-1, "fo");     
+
+    s = stx_from_len (foo, foolen+1);
+    ASSERT_PROPS (s, foolen+1, foolen, foo); 
+    
+    s = stx_from_len (NULL, 0);
+    ASSERT_PROPS (s, STX_MIN_CAP, 0, ""); 
+
+    s = stx_from_len (NULL, CAP);
+    ASSERT_PROPS (s, CAP, 0, ""); 
+
+    s = stx_from_len ("", 0);
+    ASSERT_PROPS (s, STX_MIN_CAP, 0, ""); 
+    
+    s = stx_from_len ("", CAP); //stx_show(s);
+    ASSERT_PROPS (s, CAP, 0, ""); //!
+
+    stx_free(s);
+}
 
 void dup() 
 {
@@ -444,7 +463,7 @@ void story()
     stx_append(a,foo);
     stx_append_alloc(&a,bar); //foobar
 
-    stx_t b = stx_from(foo,0);
+    stx_t b = stx_from(foo);
     stx_t c = stx_dup(b);
     stx_resize(&c,foobarlen);
     stx_append_format(c,"%s",bar); //foobar
@@ -466,6 +485,7 @@ int main()
 {
     U(new);
     U(from);
+    U(from_len);
     U(append);
     U(append_alloc);
     U(append_fmt);

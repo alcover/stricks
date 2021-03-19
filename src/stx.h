@@ -34,7 +34,9 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 typedef char* stx_t;
 
 const stx_t stx_new (const size_t cap);
-const stx_t stx_from (const char* src, const size_t n);
+const stx_t stx_from (const char* src);
+const stx_t stx_from_len (const char* src, const size_t len);
+
 const stx_t stx_dup (const stx_t src);
 
 size_t stx_cap (const stx_t s); // capacity accessor
