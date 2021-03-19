@@ -60,3 +60,19 @@ str_split (const char *str, const char* sep,
 
     callback (beg, end - beg, ctx); // last part
 }
+
+static char*
+rand_str (size_t len)
+{
+    const char charset[] = "abcde";
+
+    char* out = malloc(len+1);
+    if (!out) return out;
+    
+    char* p=out;
+    while (len--)
+        *p++ = charset[rand() % (int) (sizeof(charset)-1)];
+    *p = 0;
+    
+    return out;
+}
