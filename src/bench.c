@@ -9,6 +9,7 @@
 
 #include "stx.h"
 #include "log.h"
+#include "util.c"
 
 #include "../sds/sds.h"
 //====================================================================
@@ -83,8 +84,36 @@ void sds_grow()
 	sdsfree(s);
 }
 
+#define TEXTLEN 1<<8
+char* sep = "a";
+char* text;
+int sepcnt;
 
+void split_stx()
+{
+	unsigned int cnt=0;
+	stx_t* parts = stx_split(text, sep, &cnt);
+	
+	int totlen = 0;
+	for (int i = 0; i < cnt; ++i) {
+		totlen += stx_len(parts[i]);
+	}
+	
+	ASSERT (totlen+sepcnt, TEXTLEN);
+}
 
+void split_sds()
+{
+	int cnt=0;
+	sds* parts = sdssplitlen(text, strlen(text), sep, strlen(sep), &cnt);
+	
+	int totlen = 0;
+	for (int i = 0; i < cnt; ++i) {
+		totlen += sdslen(parts[i]);
+	}
+	
+	ASSERT (totlen+sepcnt, TEXTLEN);
+}
 
 #define BOLD  "\033[1m"
 #define RESET "\033[0m"
@@ -102,5 +131,13 @@ int main (int argc, char **argv)
 	BENCH ("SDS grow", sds_grow, 1);
 	BENCH ("STX grow", stx_grow, 1);
 	
+	text = rand_str(TEXTLEN);
+	sepcnt = str_count(text,sep);
+
+	ASSERT (strlen(text), TEXTLEN);
+	// ASSERT (strlen(text)+sepcnt, TEXTLEN); // IF SEP = 1 char only
+
+	BENCH ("SDS split", split_sds, iter/100);
+	BENCH ("STX split", split_stx, iter/100);
     return 0;
 }
