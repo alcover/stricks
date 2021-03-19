@@ -52,7 +52,7 @@ static_assert ((1<<TYPE4) == sizeof(Head4), "bad TYPE4");
 #define FLAGS(s)  (((uint8_t*)(s))[-1])
 #define TYPE(s) (FLAGS(s) & TYPE_MASK)
 #define TYPESZ(type) (1<<type)
-#define MEMSZ(type,cap) (TYPESZ(type) + sizeof(Attr) + cap + 1)
+#define MEMSZ(type,cap) (TYPESZ(type) + sizeof(Attr) + cap + 1) //! STX_MIN_CAP ??
 #define CHECK(s) ((s) && COOKIE(s) == MAGIC)
 #define HEAD(s) ((char*)(s) - sizeof(Attr) - TYPESZ(TYPE(s)))
 #define ATTR(head,type) ((Attr*)((char*)(head) + TYPESZ(type)))
@@ -290,6 +290,13 @@ stx_trim (const stx_t s)
 }
 
 
+void
+stx_update (const stx_t s)
+{
+    if (!CHECK(s)) return;
+    SETPROP(s, len, strlen(s));
+}
+
 typedef struct {
     stx_t* list; 
     unsigned int cnt;
@@ -371,13 +378,13 @@ append (void* dst, const char* src, const size_t n, bool alloc/*, bool strict*/)
     return inc;        
 }
 
-
+// ? min cap
 static bool 
 resize (stx_t *ps, const size_t newcap)
 {    
     stx_t s = *ps;
 
-    if (!CHECK(s)) return false;
+    if (!CHECK(s)||!newcap) return false; //?
 
     const void* head = HEAD(s);
     const Type type = TYPE(s);

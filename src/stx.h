@@ -43,6 +43,7 @@ size_t stx_spc (const stx_t s); // remaining space
 
 void	stx_free (const stx_t s);
 void	stx_reset (const stx_t s);
+void	stx_update (const stx_t s);
 void	stx_trim (const stx_t s);
 void	stx_show (const stx_t s); 
 bool	stx_resize (stx_t *pstx, const size_t newcap);

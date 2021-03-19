@@ -60,10 +60,13 @@ const char* big = BIG;
 void new() 
 { 
     stx_t s;
+
     s = stx_new(0);
     ASSERT_PROPS (s, STX_MIN_CAP, 0, ""); 
+    
     s = stx_new(CAP);
     ASSERT_PROPS (s, CAP, 0, ""); 
+    
     stx_free(s);
 }
 
@@ -89,6 +92,133 @@ void from()
     ASSERT_PROPS (s, foolen, foolen, foo); 
 
     stx_free(s);
+}
+
+
+void dup() 
+{
+    stx_t s = stx_new(foolen+1);
+    stx_append (s, foo);
+    stx_t dup = stx_dup(s);
+    ASSERT_PROPS (dup, foolen, foolen, foo);
+    stx_free(s);
+}
+
+
+void free_() 
+{
+    stx_t s = stx_new(3); //stx_from(foo);
+    stx_free(s);
+    // double free
+    stx_free(s);
+    // use after free
+    assert (!stx_cap(s));
+    assert (!stx_len(s));
+    assert (!stx_spc(s));
+    assert (!stx_resize (&s,10));
+    assert (!stx_dup(s));
+    assert (0 == stx_append (s, bar));
+    assert (0 == stx_append_alloc (&s, bar));
+    assert (0 == stx_append_format (s, "%s", bar));
+    assert (0 == stx_append_count (s, bar, 3));
+    assert (0 == stx_append_count_alloc (&s, bar, 3));
+}
+
+
+void resize()
+{
+    stx_t s;
+
+    s = stx_new(CAP);
+    stx_resize(&s, 0);
+    ASSERT_PROPS (s, CAP, 0, ""); 
+
+    s = stx_new(CAP);
+    stx_resize(&s, 1);
+    ASSERT_PROPS (s, 1, 0, ""); 
+
+    s = stx_new(CAP);
+    stx_resize(&s, CAP);
+    ASSERT_PROPS (s, CAP, 0, ""); 
+
+    s = stx_new(CAP);
+    stx_resize(&s, CAP+1);
+    ASSERT_PROPS (s, CAP+1, 0, ""); 
+
+    s = stx_new(CAP);
+    stx_append(s,foo);
+    stx_resize(&s, 2);
+    ASSERT_PROPS (s, 2, 2, "fo"); 
+
+    s = stx_new(CAP);
+    stx_append(s,foo);
+    stx_resize(&s, foolen+1);
+    ASSERT_PROPS (s, foolen+1, foolen, foo); 
+
+
+    stx_free(s);
+}
+
+void reset()
+{
+    stx_t s = stx_new(CAP);
+    stx_append (s, foo);
+    stx_reset(s);
+    ASSERT_PROPS (s, CAP, 0, ""); 
+    stx_free(s);
+}
+
+void update()
+{
+    stx_t s = stx_new(CAP);
+    stx_append (s, foo);
+    s[foolen-1] = 0;
+    stx_update(s);
+    ASSERT_PROPS (s, CAP, foolen-1, "fo"); 
+    stx_free(s);
+}
+
+void check()
+{
+    stx_t s = stx_new(3);
+    assert(stx_check(s));
+
+    stx_append (s, foo);
+    assert(stx_check(s));
+
+    s[-2] = 0; 
+    assert(!stx_check(s));
+
+    s = stx_new(3);
+    stx_free(s);
+    assert(!stx_check(s));
+}
+
+void equal()
+{
+    stx_t a = stx_new(3);
+    stx_t b = stx_new(4);
+    assert(stx_equal(a,b));
+
+    stx_append (a, foo);
+    stx_append (b, foo);
+    assert(stx_equal(a,b));
+
+    stx_append (b, "o");
+    assert(!stx_equal(a,b));
+}
+
+void trim()
+{
+    stx_t s = stx_new(CAP);
+    stx_append (s, " foo ");
+    stx_trim(s);
+    ASSERT_PROPS(s, CAP, foolen, foo);
+
+    s = stx_new(CAP);
+    stx_append (s, "foo ");
+    stx_trim(s);
+    ASSERT_PROPS(s, CAP, foolen, foo);
 }
 
 void append()
@@ -211,122 +341,6 @@ void append_fmt()
     APPENDF_INIT2 (foobarlen-1, "%s%s", foo, bar, -foobarlen, 0,            "");
 }
 
-void dup() 
-{
-    stx_t s = stx_new(foolen+1);
-    stx_append (s, foo);
-    stx_t dup = stx_dup(s);
-    ASSERT_PROPS (dup, foolen, foolen, foo);
-    stx_free(s);
-}
-
-
-void free_() 
-{
-    stx_t s = stx_new(3); //stx_from(foo);
-    stx_free(s);
-    // double free
-    stx_free(s);
-    // use after free
-    assert (!stx_cap(s));
-    assert (!stx_len(s));
-    assert (!stx_spc(s));
-    assert (!stx_resize (&s,10));
-    assert (!stx_dup(s));
-    assert (0 == stx_append (s, bar));
-    assert (0 == stx_append_alloc (&s, bar));
-    assert (0 == stx_append_format (s, "%s", bar));
-    assert (0 == stx_append_count (s, bar, 3));
-    assert (0 == stx_append_count_alloc (&s, bar, 3));
-}
-
-
-void resize()
-{
-    stx_t s;
-
-    s = stx_new(CAP);
-    stx_resize(&s, 0);
-    ASSERT_PROPS (s, CAP, 0, ""); 
-
-    s = stx_new(CAP);
-    stx_resize(&s, 1);
-    ASSERT_PROPS (s, 1, 0, ""); 
-
-    s = stx_new(CAP);
-    stx_resize(&s, CAP);
-    ASSERT_PROPS (s, CAP, 0, ""); 
-
-    s = stx_new(CAP);
-    stx_resize(&s, CAP+1);
-    ASSERT_PROPS (s, CAP+1, 0, ""); 
-
-    s = stx_new(CAP);
-    stx_append(s,foo);
-    stx_resize(&s, 2);
-    ASSERT_PROPS (s, 2, 2, "fo"); 
-
-    s = stx_new(CAP);
-    stx_append(s,foo);
-    stx_resize(&s, foolen+1);
-    ASSERT_PROPS (s, foolen+1, foolen, foo); 
-
-
-    stx_free(s);
-}
-
-void reset()
-{
-    stx_t s = stx_new(CAP);
-    stx_append (s, foo);
-    stx_reset(s);
-    ASSERT_PROPS (s, CAP, 0, ""); 
-    stx_free(s);
-}
-
-void check()
-{
-    stx_t s = stx_new(3);
-    assert(stx_check(s));
-
-    stx_append (s, foo);
-    assert(stx_check(s));
-
-    s[-2] = 0; 
-    assert(!stx_check(s));
-
-    s = stx_new(3);
-    stx_free(s);
-    assert(!stx_check(s));
-}
-
-void equal()
-{
-    stx_t a = stx_new(3);
-    stx_t b = stx_new(4);
-    assert(stx_equal(a,b));
-
-    stx_append (a, foo);
-    stx_append (b, foo);
-    assert(stx_equal(a,b));
-
-    stx_append (b, "o");
-    assert(!stx_equal(a,b));
-}
-
-void trim()
-{
-    stx_t s = stx_new(CAP);
-    stx_append (s, " foo ");
-    stx_trim(s);
-    ASSERT_PROPS(s, CAP, foolen, foo);
-
-    s = stx_new(CAP);
-    stx_append (s, "foo ");
-    stx_trim(s);
-    ASSERT_PROPS(s, CAP, foolen, foo);
-}
-
 
 void str_count_str_()
 {
@@ -389,9 +403,6 @@ void str_split_()
     str_split_unit ("a,b", ",", 2, (char*[]){"a","b"});
     str_split_unit ("abbc", "b", 3, (char*[]){"a","","c"});
 }
-
-
-
 
 void split_unit (const char* str, const char* sep, int expcnt, char* expparts[])
 {
@@ -460,6 +471,7 @@ int main()
     U(append_fmt);
     U(dup);
     U(reset);
+    U(update);
     U(resize);
     U(check);
     U(free_);
