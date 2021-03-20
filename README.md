@@ -138,7 +138,7 @@ If not valid, no action is taken and a *falsy* value gets returned.
 # API
 
 [stx_new](#stx_new)  
-[stx_from](#stx_from) 
+[stx_from](#stx_from)  
 [stx_from_len](#stx_from_len)  
 [stx_dup](#stx_dup)  
 

@@ -40,7 +40,7 @@ clock_t bench (void(*func)(void), unsigned int iter)
 
 	return round(1000*(float)lapse/CLOCKS_PER_SEC);
 }
-
+//====================================================================
 void stx_app()
 {
 	stx_t s = stx_new(1);
@@ -84,6 +84,7 @@ void sds_grow()
 	sdsfree(s);
 }
 
+
 #define TEXTLEN 1<<8
 char* sep = "a";
 char* text;
@@ -92,7 +93,7 @@ int sepcnt;
 void split_stx()
 {
 	unsigned int cnt=0;
-	stx_t* parts = stx_split(text, sep, &cnt);
+	stx_t* parts = stx_split(text, TEXTLEN, sep, &cnt);
 	
 	int totlen = 0;
 	for (int i = 0; i < cnt; ++i) {
@@ -105,7 +106,7 @@ void split_stx()
 void split_sds()
 {
 	int cnt=0;
-	sds* parts = sdssplitlen(text, strlen(text), sep, strlen(sep), &cnt);
+	sds* parts = sdssplitlen(text, TEXTLEN, sep, strlen(sep), &cnt);
 	
 	int totlen = 0;
 	for (int i = 0; i < cnt; ++i) {
@@ -114,6 +115,8 @@ void split_sds()
 	
 	ASSERT (totlen+sepcnt, TEXTLEN);
 }
+
+//====================================================================
 
 #define BOLD  "\033[1m"
 #define RESET "\033[0m"
@@ -132,12 +135,12 @@ int main (int argc, char **argv)
 	BENCH ("STX grow", stx_grow, 1);
 	
 	text = rand_str(TEXTLEN);
+	ASSERT (strlen(text), TEXTLEN);
 	sepcnt = str_count(text,sep);
 
-	ASSERT (strlen(text), TEXTLEN);
 	// ASSERT (strlen(text)+sepcnt, TEXTLEN); // IF SEP = 1 char only
 
-	BENCH ("SDS split", split_sds, iter/100);
-	BENCH ("STX split", split_stx, iter/100);
+	BENCH ("SDS split", split_sds, iter>>6);
+	BENCH ("STX split", split_stx, iter>>6);
     return 0;
 }

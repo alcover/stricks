@@ -51,7 +51,7 @@ void	stx_show (const stx_t s);
 bool	stx_resize (stx_t *pstx, const size_t newcap);
 bool	stx_check (const stx_t s);
 bool	stx_equal (const stx_t a, const stx_t b);
-stx_t* 	stx_split (const void* s, const char* sep, unsigned int* outcnt);
+stx_t* 	stx_split (const void* s, size_t len, const char* sep, unsigned int* outcnt);
 
 intmax_t stx_append (stx_t dst, const char* src);
 intmax_t stx_append_count (stx_t dst, const char* src, const size_t n);

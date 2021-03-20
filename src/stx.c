@@ -341,7 +341,7 @@ split_callback (const char* tok, const size_t len, void* ctx)
 
 // sentinel to allow `while(part++)`
 stx_t*
-stx_split (const void* s, const char* sep, unsigned int* outcnt)
+_stx_split (const void* s, const char* sep, unsigned int* outcnt)
 {
     if (!s) {
         *outcnt = 0;
@@ -364,6 +364,66 @@ stx_split (const void* s, const char* sep, unsigned int* outcnt)
     return list;
 }
 
+
+typedef struct {uint32_t off; uint32_t len;} Part;
+
+#define DEFNPARTS 100000 //proto
+
+stx_t*
+stx_split (const void* src, size_t srclen, const char* sep, unsigned int* outcnt)
+{
+    if (!src) {
+        *outcnt = 0;
+        return NULL;
+    }
+
+    // if (!sep) {
+    //     *outcnt = 1;
+    //     stx_t* list = STX_MALLOC(2 * sizeof(*list)); // +1: sentinel
+    //     *list = stx_from_len(src, srclen);
+    //     return list;
+    // }
+    
+    const size_t seplen = sep ? strlen(sep) : 0;
+    const char* s = src;
+    const char* beg = s;
+    unsigned int cnt = 0;
+    // size_t blocksz = 0;
+    Part parts[DEFNPARTS]; //proto
+    stx_t* list;
+
+    if (!seplen) goto last;
+
+    const char *end = strstr(s,sep);
+
+    while (end) {
+        const size_t len = end-beg;
+        // Type type = len < 256 ? TYPE1 : TYPE4;
+        // size_t partsz = MEMSZ(type,len);
+        // blocksz += partsz;
+        parts[cnt++] = (Part){beg-s, len};
+        end += seplen;
+        beg = end;
+        end = strstr(end,sep);
+    };
+
+    last:
+    parts[cnt++] = (Part){beg-s, s+srclen-beg}; //bof
+
+    // char* block = STX_MALLOC(blocksz);
+    list = STX_MALLOC((cnt+1) * sizeof(*list)); // +1: sentinel
+
+    for (int i = 0; i < cnt; ++i)
+    {   
+        Part part = parts[i];
+        list[i] = stx_from_len (s + part.off, part.len);
+    }
+
+    *outcnt = cnt;
+    list[cnt] = NULL; // sentinel
+    
+    return list;
+}
 //==== PRIVATE =======================================================================
 
 static intmax_t 

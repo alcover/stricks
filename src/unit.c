@@ -98,6 +98,9 @@ void from_len()
 
     s = stx_from_len (foo, foolen+1);
     ASSERT_PROPS (s, foolen+1, foolen, foo); 
+
+    s = stx_from_len (foo, 0);
+    ASSERT_PROPS (s, STX_MIN_CAP, 0, ""); 
     
     s = stx_from_len (NULL, 0);
     ASSERT_PROPS (s, STX_MIN_CAP, 0, ""); 
@@ -361,72 +364,13 @@ void append_fmt()
 }
 
 
-void str_count_str_()
-{
-    assert (str_count(NULL, NULL) == 0);
-    assert (str_count(NULL, "") == 0);
-    assert (str_count(NULL, "f") == 0);
-
-    assert (str_count("", NULL) == 0);
-    assert (str_count("", "") == 0);
-    assert (str_count("", "f") == 0);
-    
-    assert (str_count("f", NULL) == 0);
-    assert (str_count("f", "") == 0);
-    assert (str_count("f", "o") == 0);
-    assert (str_count("f", "f") == 1);
-    assert (str_count("f", "ff") == 0);
-
-    assert (str_count("foo", "o") == 2);
-    assert (str_count("foo", "oo") == 1);
-    assert (str_count("fooool", "oo") == 2);
-    assert (str_count("f,o,o", ",") == 2);
-}
 
 
-void str_split_cb (const char* tok, size_t len, void* ctx)
-{
-    char*** ppart = (char***)ctx;
-    char* part = **ppart;
-    strncpy (part, tok, len);
-    ++(*ppart);
-}
-
-void str_split_unit (const char* str, const char* sep, int expcnt, char* expparts[])
-{
-    if (!str||!sep) return;
-
-    const size_t cnt = str_count(str, sep) + 1;
-    ASSERT(cnt,expcnt);
-
-    char* dst[100] = {NULL};
-    for (int i = 0; i < expcnt; ++i) {
-        dst[i] = calloc(1,100); // bof
-    }
-
-    char** ppart = dst;
-    str_split (str, sep, str_split_cb, &ppart);
-
-    for (int i = 0; i < expcnt; ++i) {
-        assert_cmp(dst[i], expparts[i]);
-    }
-}
-
-void str_split_()
-{
-    // str_split_unit (NULL, NULL, 1, NULL);
-    // str_split_unit (NULL, "", 1111, (char*[]){"not reached"});
-    // str_split_unit ("", NULL, 1111, (char*[]){"not reached"});
-    // str_split_unit ("abbc", "", 4, (char*[]){"a","b","b","c"});
-    str_split_unit ("abbc", "", 1, (char*[]){"abbc"});
-    str_split_unit ("a,b", ",", 2, (char*[]){"a","b"});
-    str_split_unit ("abbc", "b", 3, (char*[]){"a","","c"});
-}
 
 void split_unit (const char* str, const char* sep, int expcnt, char* expparts[])
 {
     unsigned cnt = 0;
-    stx_t* list = stx_split(str, sep, &cnt);
+    stx_t* list = stx_split(str, strlen(str), sep, &cnt);
 
     ASSERT(cnt,expcnt);
 
@@ -444,9 +388,9 @@ void split_unit (const char* str, const char* sep, int expcnt, char* expparts[])
 
 void split()
 {
-    split_unit ("", NULL, 1, (char*[]){""});
-    split_unit ("", "", 1, (char*[]){""});
-    split_unit ("", ",", 1, (char*[]){""});
+    // split_unit ("", NULL, 1, (char*[]){""});
+    // split_unit ("", "", 1, (char*[]){""});
+    // split_unit ("", ",", 1, (char*[]){""});
 
     split_unit ("ab", NULL, 1, (char*[]){"ab"});
     split_unit ("ab", "", 1, (char*[]){"ab"});
@@ -497,8 +441,8 @@ int main()
     U(free_);
     U(equal);
     U(trim);
-    U(str_count_str_);
-    U(str_split_);
+    // U(str_count_str_);
+    // U(str_split_);
     U(split);
 
     printf ("unit tests OK\n");
