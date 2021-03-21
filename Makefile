@@ -1,8 +1,10 @@
 CC = gcc
-FLAGS = -std=c11 -Wall -Wno-unused-function -g
+STD = c11
 OPTIM = -O0
-COMP = $(CC) $(FLAGS) -c $< -o $@
-LINK = $(CC) $(FLAGS) $^ -o $@
+WARN = -Wno-pedantic # -Wall -Wno-unused-function -Wno-unused-variable
+CP = $(CC) -std=$(STD) $(OPTIM) $(WARN) -g
+COMP = $(CP) -c $< -o $@
+LINK = $(CP) $^ -o $@
 
 lib		= bin/libstx
 unit 	= bin/unit
@@ -13,25 +15,32 @@ example	= example/forum
 
 .PHONY: all check clean bench
 
-all: $(lib) $(unit) $(bench)
+all: $(lib) $(unit) $(bench) $(example) $(test)
+	
 
 $(lib): src/stx.c src/stx.h src/util.c
-	$(COMP) $(OPTIM)
-	
-$(unit): src/unit.c $(lib) src/util.c
-	$(CC) $(FLAGS) src/unit.c $(lib) -o $@
+	@ echo $@
+	@ $(COMP)
 
-$(example): example/forum.c $(lib)
-	$(LINK)
+$(unit): src/unit.c $(lib) src/util.c
+	@ echo $@
+	@ $(CP) $< $(lib) -o $@
 
 $(bench): src/bench.c $(lib) $(sds)
-	$(LINK) -lm
+	@ echo $@
+	@ $(LINK) -lm
 
-$(sds): sds/sds.c sds/sds.h
-	$(CC) -std=c99 -Wall $(OPTIM) -c $< -o $@
+$(example): example/forum.c $(lib)
+	@ echo $@
+	@ $(LINK)
 
 $(test): src/test.c $(lib)
-	$(LINK)
+	@ echo $@
+	@ $(LINK)
+
+$(sds): sds/sds.c sds/sds.h
+	@ echo $@
+	@ $(CC) -std=c99 -Wall $(OPTIM) -c $< -o $@
 
 check:
 	@ ./$(unit)
