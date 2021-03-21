@@ -10,10 +10,11 @@
 #include <errno.h>
 #include <stdarg.h>
 
+#define STX_WARNINGS 0
 #include "stx.h"
 #include "log.h"
+// #include "util.h"
 #include "util.c"
-
 //======================================================================================
 
 #define assert_cmp(a,b) assert(!strcmp((a),(b))) 
@@ -194,7 +195,7 @@ void update()
 {
     stx_t s = stx_new(CAP);
     stx_append (s, foo);
-    s[foolen-1] = 0;
+    ((char*)s)[foolen-1] = 0;
     stx_update(s);
     ASSERT_PROPS (s, CAP, foolen-1, "fo"); 
     stx_free(s);
@@ -208,7 +209,7 @@ void check()
     stx_append (s, foo);
     assert(stx_check(s));
 
-    s[-2] = 0; 
+    ((char*)s)[-2] = 0; 
     assert(!stx_check(s));
 
     s = stx_new(3);
@@ -361,6 +362,25 @@ void append_fmt()
     APPENDF_INIT2 (foobarlen,   "%s%s", foo, bar, foobarlen,  foobarlen,    foobar);
     APPENDF_INIT2 (foobarlen+1, "%s%s", foo, bar, foobarlen,  foobarlen,    foobar);
     APPENDF_INIT2 (foobarlen-1, "%s%s", foo, bar, -foobarlen, 0,            "");
+
+    {                                                       
+        stx_t page = stx_new(128);
+        int votes = 1;
+        char user[20] = "Paul";
+        char text[100] = "First post!";
+        char* fmt = "■ %s (%d points) %s";
+        char check[100];
+        snprintf (check, 100, fmt, user, votes, text);
+        // LOGVS(check);
+        size_t len = strlen(check);
+        // LOGI(len);
+        int rc = stx_append_format (page, fmt, user, votes, text);
+        // LOGVI(rc);                                     
+        assert (rc == len);
+        ASSERT_PROPS (page, 128, len, "■ Paul (1 points) First post!");
+        // stx_free(s);                     
+    }
+
 }
 
 
@@ -423,27 +443,33 @@ void story()
 
 //=======================================================================================
 
-#define U(name) {name(); printf("passed %s\n", #name); fflush(stdout);}
+#define BOLD  "\033[1m"
+#define RESET "\033[0m"
+
+#define run(name) { \
+    printf(#name " "); \
+    name(); \
+    printf( BOLD "passed.\n" RESET); \
+    fflush(stdout); \
+}
 
 int main()
 {
-    U(new);
-    U(from);
-    U(from_len);
-    U(append);
-    U(append_alloc);
-    U(append_fmt);
-    U(dup);
-    U(reset);
-    U(update);
-    U(resize);
-    U(check);
-    U(free_);
-    U(equal);
-    U(trim);
-    // U(str_count_str_);
-    // U(str_split_);
-    U(split);
+    run(new);
+    run(from);
+    run(from_len);
+    run(append);
+    run(append_alloc);
+    run(append_fmt);
+    run(dup);
+    run(reset);
+    run(update);
+    run(resize);
+    run(check);
+    run(free_);
+    run(equal);
+    run(trim);
+    run(split);
 
     printf ("unit tests OK\n");
     return 0;
