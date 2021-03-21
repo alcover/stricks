@@ -27,21 +27,23 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #endif
 
 // Print warnings : double-free, truncation, etc..
-// #define STX_WARNINGS
+#ifndef STX_WARNINGS
+#define STX_WARNINGS 0
+#endif
 
 #define STX_MIN_CAP 2
 
-typedef char* stx_t;
-
-const stx_t stx_new (const size_t cap);
-const stx_t stx_from (const char* src);
-const stx_t stx_from_len (const char* src, const size_t len);
-
-const stx_t stx_dup (const stx_t src);
+typedef const char* stx_t;
 
 size_t stx_cap (const stx_t s); // capacity accessor
 size_t stx_len (const stx_t s); // length accessor
 size_t stx_spc (const stx_t s); // remaining space
+
+stx_t stx_new (const size_t cap);
+stx_t stx_from (const char* src);
+stx_t stx_from_len (const char* src, const size_t len);
+stx_t stx_dup (const stx_t src);
+stx_t	stx_load (const char* src);
 
 void	stx_free (const stx_t s);
 void	stx_reset (const stx_t s);
@@ -53,11 +55,11 @@ bool	stx_check (const stx_t s);
 bool	stx_equal (const stx_t a, const stx_t b);
 stx_t* 	stx_split (const void* s, size_t len, const char* sep, unsigned int* outcnt);
 
-intmax_t stx_append (stx_t dst, const char* src);
-intmax_t stx_append_count (stx_t dst, const char* src, const size_t n);
-intmax_t stx_append_format (const stx_t dst, const char* fmt, ...);
-size_t	 stx_append_alloc (stx_t* dst, const char* src);
-size_t	 stx_append_count_alloc (stx_t* dst, const char* src, const size_t n);
+int		stx_append (stx_t dst, const char* src);
+int		stx_append_count (stx_t dst, const char* src, const size_t n);
+int		stx_append_format (const stx_t dst, const char* fmt, ...);
+size_t	stx_append_alloc (stx_t* dst, const char* src);
+size_t	stx_append_count_alloc (stx_t* dst, const char* src, const size_t n);
 
 // Shorthands
 #define stx_cat		stx_append
