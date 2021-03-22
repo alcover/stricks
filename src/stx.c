@@ -185,33 +185,33 @@ append_format (stx_t dst, const char* fmt, va_list args)
 
     if (!spc) return 0;
 
-    char* end = (char*)dst + len;
+    char* end = ((char*)dst) + len;
 
     errno = 0;
-    const int srclen = vsnprintf(end, spc+1, fmt, args);
+    const int fmlen = vsnprintf(end, spc+1, fmt, args);
      
     // Error
-    if (srclen < 0) {
+    if (fmlen < 0) {
         perror("stx_append_format");
         *end = 0; // undo
         return 0;
     }
 
     // Truncation
-    if (srclen > spc) {
+    if (fmlen > spc) {
         
         #if STX_WARNINGS > 0
             ERR ("append_format: truncation\n");
         #endif
 
         *end = 0; // undo
-        return -(len + srclen);
+        return -(len + fmlen); 
     } 
 
     // Update length
-    HSETLEN(head, type, srclen);
+    HSETLEN(head, type, len + fmlen);
 
-    return srclen;
+    return fmlen;
 }
 
 
