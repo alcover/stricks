@@ -20,23 +20,23 @@
 #define assert_cmp(a,b) assert(!strcmp((a),(b))) 
 
 #define ASSERT_PROPS(s, cap, len, data) \
-assert (stx_cap(s) == cap); \
-assert (stx_len(s) == len); \
-assert (!strcmp(s, data))  
+ASSERT_INT (stx_cap(s), cap); \
+ASSERT_INT (stx_len(s), len); \
+ASSERT_STR ((s), data)
 
 
-#define ASSERT(a, b) { \
+#define ASSERT_INT(a, b) { \
     if (a!=b) { \
-        fprintf(stderr, "%d: assertion %s==%s failed: %s==%d %s==%d\n", \
-            __LINE__, #a, #b, #a, (int)a, #b, (int)b); \
+        fprintf(stderr, "%d: %s:%d != %s:%d\n", \
+            __LINE__, #a, (int)a, #b, (int)b); \
         exit(1); \
     } \
 }
 
-#define ASSERT_CMP(stra, strb) { \
+#define ASSERT_STR(stra, strb) { \
     if (strcmp(stra, strb)) { \
-        fprintf(stderr, "%d: assertion %s==%s failed: %s=='%s' %s=='%s'\n", \
-            __LINE__, #stra, #strb, #stra, stra, #strb, strb); \
+        fprintf(stderr, "%d: %s:'%s' != %s:'%s'\n", \
+            __LINE__, #stra, stra, #strb, strb); \
         exit(1); \
     } \
 }
@@ -335,6 +335,17 @@ void append_alloc()
     APPENDA_INIT (foolen-1, foo, foolen+1, foolen, foo);
 }
 
+
+
+// void append_fmt_more(src1, src2)
+// {
+//     stx_t s = stx_new(cap);                            
+//     int rc = stx_append_format (s, fmt, src);                 
+//     assert (rc == exprc);                               
+//     ASSERT_PROPS (s, cap, explen, expdata); 
+//     stx_free(s);                                        
+// }
+
 void append_fmt()
 {
     #define APPENDF_INIT(cap, fmt, src, exprc, explen, expdata)    \
@@ -355,6 +366,16 @@ void append_fmt()
         stx_free(s);                                        \
     }
 
+    #define APPENDF_MORE(cap, fmt, src1, src2, exprc, explen, expdata)    \
+    {                                                       \
+        stx_t s = stx_new(cap);                            \
+        stx_append_format (s, fmt, src1);                 \
+        int rc = stx_append_format (s, fmt, src2);                 \
+        assert (rc == exprc);                               \
+        ASSERT_PROPS (s, cap, explen, expdata); \
+        stx_free(s);                                        \
+    }
+
     APPENDF_INIT (foolen,   "%s", foo,  foolen,  foolen, foo);
     APPENDF_INIT (foolen+1, "%s", foo,  foolen,  foolen, foo);
     APPENDF_INIT (foolen-1, "%s", foo,  -foolen, 0,      "");
@@ -362,6 +383,8 @@ void append_fmt()
     APPENDF_INIT2 (foobarlen,   "%s%s", foo, bar, foobarlen,  foobarlen,    foobar);
     APPENDF_INIT2 (foobarlen+1, "%s%s", foo, bar, foobarlen,  foobarlen,    foobar);
     APPENDF_INIT2 (foobarlen-1, "%s%s", foo, bar, -foobarlen, 0,            "");
+
+    APPENDF_MORE (foobarlen*2, "%s", foo, bar, barlen,  foobarlen,    foobar);
 
     {                                                       
         stx_t page = stx_new(128);
@@ -392,16 +415,16 @@ void split_unit (const char* str, const char* sep, int expcnt, char* expparts[])
     unsigned cnt = 0;
     stx_t* list = stx_split(str, strlen(str), sep, &cnt);
 
-    ASSERT(cnt,expcnt);
+    ASSERT_INT(cnt,expcnt);
 
     for (int i = 0; i < cnt; ++i) {
         const stx_t elt = list[i];
         const char* exp = expparts[i];
         const size_t explen = strlen(exp);
         // ASSERT_PROPS (elt, STX_MIN_CAP, 1, explen);
-        ASSERT (stx_cap(elt), max(STX_MIN_CAP,explen));
-        ASSERT (stx_len(elt), explen);
-        ASSERT_CMP (elt, exp);
+        ASSERT_INT (stx_cap(elt), max(STX_MIN_CAP,explen));
+        ASSERT_INT (stx_len(elt), explen);
+        ASSERT_STR (elt, exp);
     }
 }
 
