@@ -473,6 +473,8 @@ stx_update (const stx_t s)
 }
 
 
+
+
 typedef struct {uint32_t off; uint32_t len;} Part;
 
 #define DEFNPARTS 100000 //proto
@@ -536,9 +538,9 @@ stx_split (const void* src, size_t srclen, const char* sep, unsigned int* outcnt
 
 // read file
 stx_t 
-stx_load (const char* src)
+stx_load (const char* src_path)
 {
-    FILE *file = fopen(src,"rb");
+    FILE *file = fopen(src_path, "rb");
 
     if (!file) {
         perror("fopen");

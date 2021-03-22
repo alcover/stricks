@@ -43,7 +43,7 @@ stx_t stx_new (const size_t cap);
 stx_t stx_from (const char* src);
 stx_t stx_from_len (const char* src, const size_t len);
 stx_t stx_dup (const stx_t src);
-stx_t	stx_load (const char* src);
+stx_t stx_load (const char* src);
 
 void	stx_free (const stx_t s);
 void	stx_reset (const stx_t s);
