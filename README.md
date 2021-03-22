@@ -99,16 +99,15 @@ Header {
 *Header* takes care of the string state and bounds-checking.  
 The `stx_t` type points directly to the `data` member.  
 
-This technique is used notably in antirez [SDS](https://github.com/antirez/sds).  
-
 Header and data occupy a **single block** of memory (an "*SBlock*"),  
 avoiding the further indirection you find in typical `{len,*str}` schemes.    
 
-The *SBlock* is invisible to the user, who only passes `stx_t` to and from the API.    
-Of course, being really a `char*`, a *strick* can be passed to any  
-(non-modifying) `<string.h>` function.  
+This technique is used notably in antirez [SDS](https://github.com/antirez/sds).  
 
-The above Header layout is simplified. In reality, Stricks defines several header types to optimize space for short strings, and houses the *cookie* and *flags* attributes in a separate `struct`.
+The *SBlock* is invisible to the user, who only passes `stx_t` to and from.    
+The big + is, being really `char*`, *stricks* can be passed to any (non-modifying) `<string.h>` function.  
+
+The above layout is simplified. In reality, Stricks defines two header types to optimize space for short strings, and houses the *cookie* and *flags* attributes in a separate `struct`.
 
 #### example usage
 ```C
@@ -128,7 +127,7 @@ printf("%s\n", s);
 
 Stricks aims at limiting memory faults through the API :  
 
-* typedef `const char*` forces the user to cast when she wants to write
+* typedef `const char*` forces the user to cast when she wants to write.
 * all API methods check for a valid *Header*.  
 * if invalid, no action is taken and a *falsy* value gets returned.  
 
@@ -143,6 +142,7 @@ Stricks aims at limiting memory faults through the API :
 [stx_from](#stx_from)  
 [stx_from_len](#stx_from_len)  
 [stx_dup](#stx_dup)  
+[stx_load](#stx_load)  
 
 [stx_cap](#stx_cap)  
 [stx_len](#stx_len)  
@@ -231,7 +231,11 @@ stx_show(dup);
 
 ```
 
-
+### stx_load
+Read string from file.
+```C
+stx_t stx_load (const char* src_path)
+```
 
 ### stx_cap  
 Current capacity accessor.
@@ -518,6 +522,6 @@ Hello! My name is Alco.
 `make && make check`
 
 ## TODO
-* utf8
 * Slices / StringView
-* More high-level methods
+* Utf-8 ?
+* More high-level methods ?
