@@ -424,6 +424,20 @@ void split()
 }
 
 
+void read()
+{   
+    // const char text[] = "Hello";
+    // const size_t len = strlen(text);
+    const char path[] = "/tmp/stxfile";
+    
+    FILE* file = fopen(path,"wb");
+    fprintf(file, foo);
+    fclose(file);
+
+    stx_t s = stx_load(path);
+    ASSERT_PROPS(s, foolen, foolen, foo);
+}
+
 void story()
 {
     stx_t a = stx_new(foolen);
@@ -474,6 +488,7 @@ int main()
     run(equal);
     run(trim);
     run(split);
+    run(read);
 
     printf ("unit tests OK\n");
     return 0;
