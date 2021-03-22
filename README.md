@@ -81,7 +81,7 @@ See *example/forum.c* for a Stricks implementation of the 'forum'.
 The `stx_t` (or "*strick*") type is just a normal `char*` string.  
 
 ```C
-typedef char* stx_t;
+typedef const char* stx_t;
 ```
 
 The trick :wink: lies **before** the *stx_t* address :  
@@ -126,9 +126,11 @@ printf("%s\n", s);
 
 # Security
 
-Stricks aims at not letting memory faults happen through the API.  
-All methods check for a valid *Header*.  
-If not valid, no action is taken and a *falsy* value gets returned.  
+Stricks aims at limiting memory faults through the API :  
+
+* typedef `const char*` forces the user to cast when she wants to write
+* all API methods check for a valid *Header*.  
+* if invalid, no action is taken and a *falsy* value gets returned.  
 
 (See *[stx_free](#stx_free)*)
 
@@ -165,8 +167,9 @@ If not valid, no action is taken and a *falsy* value gets returned.
 
 Custom allocator and destructor can be defined with  
 ```
-#define STX_MALLOC ...
-#define STX_FREE ...
+#define STX_MALLOC  my_allocator
+#define STX_REALLOC my_realloc
+#define STX_FREE    my_free
 ```
 
 ### stx_new
@@ -269,7 +272,8 @@ void stx_free (stx_t s)
 ```
 Releases the enclosing SBlock.  
 
-:cake: **Security** : Once the SBlock is freed, **no use-after-free or double-free** should be possible through the Strick API :  
+:cake: **Security** :  
+Once the block is freed, no *use-after-free* or *double-free* should be possible through the Strick API :  
 
 ```C
 stx_t s = stx_new(16);
@@ -287,9 +291,9 @@ stx_free(s);
 // No action.
 ```
 
-#### How it works :wrench:
+:wrench: **How it works**  
 On first call, `stx_free(s)` zeroes-out the header, erasing the `cookie` canary.  
-All subsequent API calls check for the canary, find it dead, then do nothing.
+All subsequent API calls check the canary and do nothing if dead.
 
 
 ### stx_resize    
@@ -322,9 +326,10 @@ Capacity remains the same.
 ### stx_split
 Splits a *strick* **or** string on separator `sep` into an array of *stricks*. 
 ```C
-stx_t* stx_split (const void* s, const char* sep, unsigned int *outcnt)
+stx_t*
+stx_split (const void* s, const char* sep, unsigned int *outcnt)
 ```
-`*outcnt` receives the returned array length.
+`*outcnt` gets the array length.
 
 ```C
 stx_t s = stx_from("foo, bar");
@@ -340,8 +345,13 @@ for (int i = 0; i < cnt; ++i) {
 // cap:3 len:3 data:'bar'
 
 ```
+Or more comfortably (using the list sentinel)
 
-
+```C
+while (part = *list++) {
+    stx_show(part);
+}
+```
 
 
 ### stx_equal    
