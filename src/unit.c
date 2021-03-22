@@ -384,26 +384,7 @@ void append_fmt()
     APPENDF_INIT2 (foobarlen+1, "%s%s", foo, bar, foobarlen,  foobarlen,    foobar);
     APPENDF_INIT2 (foobarlen-1, "%s%s", foo, bar, -foobarlen, 0,            "");
 
-    APPENDF_MORE (foobarlen*2, "%s", foo, bar, barlen,  foobarlen,    foobar);
-
-    {                                                       
-        stx_t page = stx_new(128);
-        int votes = 1;
-        char user[20] = "Paul";
-        char text[100] = "First post!";
-        char* fmt = "■ %s (%d points) %s";
-        char check[100];
-        snprintf (check, 100, fmt, user, votes, text);
-        // LOGVS(check);
-        size_t len = strlen(check);
-        // LOGI(len);
-        int rc = stx_append_format (page, fmt, user, votes, text);
-        // LOGVI(rc);                                     
-        assert (rc == len);
-        ASSERT_PROPS (page, 128, len, "■ Paul (1 points) First post!");
-        // stx_free(s);                     
-    }
-
+    APPENDF_MORE (foobarlen*2, "%s", foo, bar, barlen, foobarlen, foobar);
 }
 
 
