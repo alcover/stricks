@@ -18,7 +18,6 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 
 #include "stx.h"
 #include "log.h"
-// #include "util.h"
 #include "util.c"
 
 typedef struct {   
@@ -41,6 +40,8 @@ typedef enum {
     TYPE1 = (int)log2(sizeof(Head1)), 
     TYPE4 = (int)log2(sizeof(Head4))
 } Type;
+
+typedef struct {uint32_t off; uint32_t len;} Part; // for split()
 
 static_assert ((1<<TYPE1) == sizeof(Head1), "bad TYPE1");
 static_assert ((1<<TYPE4) == sizeof(Head4), "bad TYPE4");
@@ -473,12 +474,6 @@ stx_update (const stx_t s)
 }
 
 
-
-
-typedef struct {uint32_t off; uint32_t len;} Part;
-
-#define DEFNPARTS 100000 //proto
-
 stx_t*
 stx_split (const void* src, size_t srclen, const char* sep, unsigned int* outcnt)
 {
@@ -486,20 +481,17 @@ stx_split (const void* src, size_t srclen, const char* sep, unsigned int* outcnt
         *outcnt = 0;
         return NULL;
     }
-
-    // if (!sep) {
-    //     *outcnt = 1;
-    //     stx_t* list = STX_MALLOC(2 * sizeof(*list)); // +1: sentinel
-    //     *list = stx_from_len(src, srclen);
-    //     return list;
-    // }
     
     const size_t seplen = sep ? strlen(sep) : 0;
+    
+    // solid ?
+    const unsigned int nparts = str_count(src,sep)+1;
+    Part parts[nparts];
+
     const char* s = src;
     const char* beg = s;
     unsigned int cnt = 0;
     // size_t blocksz = 0;
-    Part parts[DEFNPARTS]; //proto
     stx_t* list;
 
     if (!seplen) goto last;
@@ -529,14 +521,17 @@ stx_split (const void* src, size_t srclen, const char* sep, unsigned int* outcnt
         list[i] = stx_from_len (s + part.off, part.len);
     }
 
-    *outcnt = cnt;
     list[cnt] = NULL; // sentinel
+    *outcnt = cnt;
     
     return list;
 }
 
 
 // read file
+// prob: bin str with NULs ?
+// linux optim : open_memstream, fmemopen
+
 stx_t 
 stx_load (const char* src_path)
 {
