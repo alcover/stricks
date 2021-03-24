@@ -13,9 +13,8 @@
 #define STX_WARNINGS 0
 #include "stx.h"
 #include "log.h"
-// #include "util.h"
 #include "util.c"
-//======================================================================================
+//==============================================================================
 
 #define assert_cmp(a,b) assert(!strcmp((a),(b))) 
 
@@ -41,7 +40,7 @@ ASSERT_STR ((s), data)
     } \
 }
 
-//======================================================================================
+//==============================================================================
 
 #define CAP 100  
 
@@ -380,9 +379,9 @@ void append_fmt()
     APPENDF_INIT (foolen+1, "%s", foo,  foolen,  foolen, foo);
     APPENDF_INIT (foolen-1, "%s", foo,  -foolen, 0,      "");
 
-    APPENDF_INIT2 (foobarlen,   "%s%s", foo, bar, foobarlen,  foobarlen,    foobar);
-    APPENDF_INIT2 (foobarlen+1, "%s%s", foo, bar, foobarlen,  foobarlen,    foobar);
-    APPENDF_INIT2 (foobarlen-1, "%s%s", foo, bar, -foobarlen, 0,            "");
+    APPENDF_INIT2 (foobarlen,   "%s%s", foo, bar, foobarlen, foobarlen, foobar);
+    APPENDF_INIT2 (foobarlen+1, "%s%s", foo, bar, foobarlen, foobarlen, foobar);
+    APPENDF_INIT2 (foobarlen-1, "%s%s", foo, bar, -foobarlen, 0, "");
 
     APPENDF_MORE (foobarlen*2, "%s", foo, bar, barlen, foobarlen, foobar);
 }
@@ -412,9 +411,9 @@ void split_unit (const char* str, const char* sep, int expcnt, char* expparts[])
 
 void split()
 {
-    // split_unit ("", NULL, 1, (char*[]){""});
-    // split_unit ("", "", 1, (char*[]){""});
-    // split_unit ("", ",", 1, (char*[]){""});
+    split_unit ("", NULL, 1, (char*[]){""});
+    split_unit ("", "", 1, (char*[]){""});
+    split_unit ("", ",", 1, (char*[]){""});
 
     split_unit ("ab", NULL, 1, (char*[]){"ab"});
     split_unit ("ab", "", 1, (char*[]){"ab"});
@@ -424,10 +423,8 @@ void split()
 }
 
 
-void read()
+void load()
 {   
-    // const char text[] = "Hello";
-    // const size_t len = strlen(text);
     const char path[] = "/tmp/stxfile";
     
     FILE* file = fopen(path,"wb");
@@ -459,15 +456,11 @@ void story()
     assert(stx_equal(a,c));
 }
 
-//=======================================================================================
-
-#define BOLD  "\033[1m"
-#define RESET "\033[0m"
+//============================================================================
 
 #define run(name) { \
-    printf(#name " "); \
+    printf("%s\n", #name); \
     name(); \
-    printf( BOLD "passed.\n" RESET); \
     fflush(stdout); \
 }
 
@@ -488,7 +481,7 @@ int main()
     run(equal);
     run(trim);
     run(split);
-    run(read);
+    run(load);
 
     printf ("unit tests OK\n");
     return 0;
