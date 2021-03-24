@@ -8,23 +8,24 @@ LINK = $(CP) $^ -o $@
 
 lib		= bin/libstx
 unit 	= bin/unit
-test 	= bin/test
 bench 	= bin/bench
-sds 	= bin/sds
 example	= example/forum
+sandbox = bin/sandbox
+sds 	= bin/sds
 
 .PHONY: all check clean bench
 
-all: $(lib) $(unit) $(bench) $(example) $(test)
+all: $(lib) $(unit) $(bench) $(example) $(sandbox)
 	
-
 $(lib): src/stx.c src/stx.h src/util.c
 	@ echo $@
 	@ $(COMP)
+# 	@ ./$(unit)
 
 $(unit): src/unit.c $(lib) src/util.c
 	@ echo $@
 	@ $(CP) $< $(lib) -o $@
+# 	@ ./$(unit)
 
 $(bench): src/bench.c $(lib) $(sds)
 	@ echo $@
@@ -34,7 +35,7 @@ $(example): example/forum.c $(lib)
 	@ echo $@
 	@ $(LINK)
 
-$(test): src/test.c $(lib)
+$(sandbox): sandbox.c $(lib)
 	@ echo $@
 	@ $(LINK)
 
