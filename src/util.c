@@ -1,3 +1,6 @@
+#ifndef ALCO_UTIL_H
+#define ALCO_UTIL_H
+
 #define max(a,b) ({ \
 __typeof__ (a) _a = (a); \
 __typeof__ (b) _b = (b); \
@@ -33,17 +36,17 @@ str_count (const char *str, const char* tok)
 
 
 static char*
-rand_str (size_t len)
+rand_str (size_t len, const char* charset)
 {
-    const char charset[] = "abcde";
-
-    char* out = malloc(len+1);
-    if (!out) return out;
-    
+    const int setlen = strlen(charset);
+    char* out = malloc(len+1);    
     char* p=out;
+
     while (len--)
-        *p++ = charset[rand() % (int) (sizeof(charset)-1)];
-    *p = 0;
+        *p++ = charset[rand() % (setlen-1)];
     
+    *p = 0;   
     return out;
 }
+
+#endif
