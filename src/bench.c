@@ -1,3 +1,6 @@
+
+// rem: dev box is Intel Core i3 from 2011..
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -9,7 +12,6 @@
 
 #include "stx.h"
 #include "log.h"
-// #include "util.h"
 #include "util.c"
 
 #include "../sds/sds.h"
@@ -23,125 +25,136 @@
     } \
 }
 
-// 1<<20 = 1.048.576
-#define DEFAULT_ITER (1<<24)
-int iter;
+#define FOR(i,n) for (int i = 0; i < n; ++i)
 
 const char* foo = "foo";
 const size_t foolen = 3;
 
-#define BENCH(title, func, iter) \
-printf ("%s (x%d) : %li ms\n", title, iter, bench(func,iter))
-
-clock_t bench (void(*func)(void), unsigned int iter)
-{
-	clock_t start = clock();
-	for (int i=0; i<iter; ++i) func();
-	clock_t lapse = clock() - start;
-
-	return round(1000*(float)lapse/CLOCKS_PER_SEC);
-}
 //====================================================================
-void stx_app()
-{
-	stx_t s = stx_new(1);
-	stx_append(s, foo);
-	stx_free(s);
-}
 
-void sds_app()
-{
-	sds s = sdsnewlen(SDS_NOINIT, 10);
-	s = sdscat(s, foo);
-	sdsfree(s);
-}
-
-void stx_grow()
+void STX_append_dyn (const char* word, int n)
 {
 	stx_t s = stx_from("");
-
-	for (int i=0; i<iter; ++i) 
-		stx_append_alloc(&s, foo);
-	
-	// if (iter<10) printf("stx:'%s'\n", (char*)s);
-	// stx_show(s);
-
-	ASSERT (stx_len(s), foolen*iter);
-	
+	FOR(i,n) 
+		stx_append_alloc (&s, foo);
+	ASSERT (stx_len(s), foolen*n);
 	stx_free(s);
 }
 
-void sds_grow()
+void SDS_append_dyn (const char* word, int n)
 {
 	sds s = sdsnew("");
-	
-	for (int i=0; i<iter; ++i) 
-		s = sdscat(s, foo);
-	
-	// if (iter<10) printf("s:'%s'\n", (char*)s);
-
-	ASSERT (sdslen(s), foolen*iter);
-
+	FOR(i,n) 
+		s = sdscat (s, foo);
+	ASSERT (sdslen(s), foolen*n);
 	sdsfree(s);
 }
 
 
-#define TEXTLEN 1<<8
-char* sep = "a";
-char* text;
-int sepcnt;
-
-void split_stx()
+void STX_new (size_t cap, int n)
 {
-	unsigned int cnt=0;
-	stx_t* parts = stx_split(text, TEXTLEN, sep, &cnt);
+	stx_t* arr = malloc(n * sizeof(*arr));
+
+	FOR(i,n)
+		arr[i] = stx_new(cap);
+	FOR(i,n)
+		stx_free(arr[i]);
 	
-	int totlen = 0;
-	for (int i = 0; i < cnt; ++i) {
-		totlen += stx_len(parts[i]);
-	}
-	
-	ASSERT (totlen+sepcnt, TEXTLEN);
+	free(arr);
 }
 
-void split_sds()
+void STX_from_len (const char* src, size_t len, int n)
 {
-	int cnt=0;
-	sds* parts = sdssplitlen(text, TEXTLEN, sep, strlen(sep), &cnt);
+	stx_t* arr = malloc(n * sizeof(*arr));
+
+	FOR(i,n)
+		arr[i] = stx_from_len(src,len);
+	FOR(i,n)
+		stx_free(arr[i]);
 	
-	int totlen = 0;
-	for (int i = 0; i < cnt; ++i) {
-		totlen += sdslen(parts[i]);
-	}
-	
-	ASSERT (totlen+sepcnt, TEXTLEN);
+	free(arr);
 }
 
-//====================================================================
+void SDS_from_len (const char* src, size_t len, int n)
+{
+	sds* arr = malloc(n * sizeof(*arr));
+
+	FOR(i,n)
+		arr[i] = sdsnewlen(src,len);
+	FOR(i,n)
+		sdsfree(arr[i]);
+	
+	free(arr);
+}
+
+
+
+void STX_split(char* text, int textlen, char* sep)
+{
+	int nparts=0;
+	stx_t* parts = stx_split(text, textlen, sep, &nparts);
+	
+	int partslen = 0;
+	FOR(i,nparts) partslen += stx_len(parts[i]);
+	
+	ASSERT (partslen + (nparts-1)*strlen(sep), textlen);
+}
+
+void SDS_split(char* text, int textlen, char* sep)
+{
+	int nparts=0;
+	sds* parts = sdssplitlen(text, textlen, sep, strlen(sep), &nparts);
+	
+	int partslen = 0;
+	FOR(i,nparts) partslen += sdslen(parts[i]);
+	
+	ASSERT (partslen + (nparts-1)*strlen(sep), textlen);
+}
+
 
 #define BOLD  "\033[1m"
 #define RESET "\033[0m"
 
-int main (int argc, char **argv) 
-{
-	if (argc > 1)
-		iter = atoi(argv[1]);
-	else
-		iter = DEFAULT_ITER;
-	
-	BENCH ("SDS append", sds_app, iter);
-	BENCH ("STX append", stx_app, iter);
-
-	BENCH ("SDS grow", sds_grow, 1);
-	BENCH ("STX grow", stx_grow, 1);
-	
-	text = rand_str(TEXTLEN);
-	ASSERT (strlen(text), TEXTLEN);
-	sepcnt = str_count(text,sep);
-
-	// ASSERT (strlen(text)+sepcnt, TEXTLEN); // IF SEP = 1 char only
-
-	BENCH ("SDS split", split_sds, iter>>6);
-	BENCH ("STX split", split_stx, iter>>6);
-    return 0;
+#define BENCH(func, args, times, bold) { \
+	printf ("%s (x%d) : ", #func, times);\
+	clock_t start = clock();\
+	for (int i=0; i<times; ++i) func args;\
+	clock_t ticks = clock() - start;\
+	unsigned mstime = round(1000*(float)ticks/CLOCKS_PER_SEC); \
+	if(bold) printf(BOLD);\
+	printf ("%li ms\n", mstime); \
+	if(bold) printf(RESET);\
 }
+
+// 1<<20 = 1M
+#define DEFAULT_ORDER 24
+
+//====================================================================
+
+int main (int argc, char **argv) {
+
+int order;
+if (argc > 1)
+	order = atoi(argv[1]);
+else
+	order = 0;
+int N = 2<<(20+order);
+
+BENCH (SDS_from_len, (foo,foolen,N), 1, 0);
+BENCH (STX_from_len, (foo,foolen,N), 1, 1);
+
+BENCH (SDS_append_dyn, (foo,N), 1, 0);
+BENCH (STX_append_dyn, (foo,N), 1, 1);
+
+char* text;
+size_t textlen;
+
+textlen = N*4;
+text = rand_str(textlen, "abcd,");
+// ASSERT (strlen(text), TEXTLEN); 
+// sepcnt = str_count(text,sep);
+BENCH (SDS_split, (text,textlen,","), 1, 0);
+BENCH (STX_split, (text,textlen,","), 1, 1);
+
+
+return 0;}
