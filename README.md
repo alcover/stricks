@@ -1,17 +1,17 @@
 ![logo](assets/logo.png)
 
 # Stricks
-Experimental managed C-strings library.  
+Managed C strings library.  
  
 ![CI](https://github.com/alcover/stricks/actions/workflows/ci.yml/badge.svg)  
 :orange_book: [API](#API)
 
 ## Why ?
 
-C strings are hard, unassisted and risky.  
+Because handling C strings is tedious and error-prone.  
 Appending while keeping track of length, null-termination, realloc, etc...  
 
-They can also be slowed by excessive (sometimes implicit) calls to `strlen`.  
+Speed is also a concern with excessive (sometimes implicit) calls to `strlen`.  
 
 Say you're making a forum engine, where a *page* is a fixed buffer.  
 How to safely add posts without truncation ?
@@ -30,13 +30,11 @@ while(1) {
     char* user = db("user");
     char* text = db("text");
 
-    // Will null be counted ? Lookup `snprintf`...
-    // No it won't
+    // Will null be counted ? Lookup `snprintf`... Nope.
     int post_len = snprintf (
         // Keep track
         page + page_len,
-        // Will it be null-terminated ? Lookup `snprintf`...
-        // Yes it will
+        // Will it be null-terminated ? Lookup `snprintf`... Yep.
         PAGE_SZ - page_len, 
         "<div>%s<br>%s</div>", user, text
     );
@@ -96,27 +94,27 @@ Header {
 }
 ```
 
-*Header* takes care of the string state and bounds-checking.  
+*Header* takes care of the string state and bounds.  
 The `stx_t` type points directly to the `data` member.  
 
 Header and data occupy a **single block** of memory (an "*SBlock*"),  
-avoiding the further indirection you find in typical `{len,*str}` schemes.    
+avoiding the indirection you find in `{len,*str}` schemes.    
 
 This technique is used notably in antirez [SDS](https://github.com/antirez/sds).  
 
 The *SBlock* is invisible to the user, who only passes `stx_t` to and from.    
 The big + is, being really `char*`, *stricks* can be passed to any (non-modifying) `<string.h>` function.  
 
-The above layout is simplified. In reality, Stricks defines two header types to optimize space for short strings, and houses the *canary* and *flags* attributes in a separate `struct`.
+The above layout is simplified. In reality, Stricks defines two header types to optimize space for short strings, and houses the *canary* and *flags*  
+in a separate `struct`.
 
 #### example usage
 ```C
 stx_t s = stx_from("Stricks");
+stx_append_alloc (&s, " are treats!");        
 
-stx_cata(s, " rule!");        
-printf("%s\n", s);
-
-//> Stricks rule!
+printf(s);
+//> Stricks are treats!
 
 ```
 
@@ -150,6 +148,7 @@ Stricks aims at limiting memory faults through the API :
 
 [stx_free](#stx_free)  
 [stx_reset](#stx_reset)  
+[stx_update](#stx_update)  
 [stx_trim](#stx_trim)  
 [stx_show](#stx_show)  
 [stx_resize](#stx_resize)  
@@ -237,6 +236,9 @@ Read string from file.
 stx_t stx_load (const char* src_path)
 ```
 
+
+
+
 ### stx_cap  
 Current capacity accessor.
 ```C
@@ -318,6 +320,12 @@ stx_show(s);
 // cap:6 len:6 data:'foobar'
 ```
 
+
+### stx_update
+Sets `len` straight in case data was modified from outside.
+```C
+void stx_update (stx_t s)
+```
 
 ### stx_trim
 Removes white space, left and right.
