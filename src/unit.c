@@ -1,6 +1,8 @@
-// todo : free() all instances
+/*
+    Unit tests of public methods
+*/
 
-// Unit tests of public methods
+// todo : free() all instances
 
 #include <stdio.h>
 #include <stdlib.h>

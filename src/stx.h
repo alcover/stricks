@@ -1,5 +1,5 @@
 /*
-Stricks v0.2.3
+Stricks v0.3.1
 Copyright (C) 2021 - Francois Alcover <francois[@]alcover.fr>
 NO WARRANTY EXPRESSED OR IMPLIED.
 */
