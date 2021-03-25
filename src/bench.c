@@ -1,5 +1,5 @@
 
-// rem: dev box is Intel Core i3 from 2011..
+// dev box = Intel Core i3 (2011)
 
 #include <stdio.h>
 #include <stdlib.h>

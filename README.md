@@ -175,7 +175,7 @@ Custom allocator and destructor can be defined with
 ### stx_new
 Allocates and inits a new *strick* of capacity `cap`.  
 ```C
-stx_t stx_new (const size_t cap)
+stx_t stx_new (size_t cap)
 ```
 
 ### stx_from
@@ -195,7 +195,7 @@ stx_show(s);
 ### stx_from_len
 Creates a new *strick* with at most `len` bytes from `src`.  
 ```C
-stx_t stx_from_len (const char* src, const size_t len)
+stx_t stx_from_len (const char* src, size_t len)
 ```
 If `len > strlen(src)`, the resulting capacity is `len`.  
 Capacity gets trimmed down to length.
@@ -218,7 +218,7 @@ stx_show(s);
 ### stx_dup
 Creates a duplicate strick of `src`.  
 ```C
-stx_t stx_dup (const stx_t src)
+stx_t stx_dup (stx_t src)
 ```
 Capacity gets trimmed down to length.
 
@@ -240,19 +240,19 @@ stx_t stx_load (const char* src_path)
 ### stx_cap  
 Current capacity accessor.
 ```C
-size_t stx_cap (const stx_t s)
+size_t stx_cap (stx_t s)
 ```
 
 ### stx_len  
 Current length accessor.
 ```C
-size_t stx_len (const stx_t s)
+size_t stx_len (stx_t s)
 ```
 
 ### stx_spc  
 Remaining space.
 ```C
-size_t stx_spc (const stx_t s)
+size_t stx_spc (stx_t s)
 ```
 
 
@@ -260,7 +260,7 @@ size_t stx_spc (const stx_t s)
 ### stx_reset    
 Sets data length to zero.  
 ```C
-void stx_reset (const stx_t s)
+void stx_reset (stx_t s)
 ```
 ```C
 stx_t s = stx_new(16);
@@ -303,7 +303,7 @@ All subsequent API calls check the canary and do nothing if dead.
 ### stx_resize    
 Change capacity.  
 ```C
-bool stx_resize (stx_t *pstx, const size_t newcap)
+bool stx_resize (stx_t *pstx, size_t newcap)
 ```
 * If increased, the passed **reference** may get transparently updated.
 * If lowered below length, data gets truncated.  
@@ -322,7 +322,7 @@ stx_show(s);
 ### stx_trim
 Removes white space, left and right.
 ```C
-void stx_trim (const stx_t s)
+void stx_trim (stx_t s)
 ```
 Capacity remains the same.
 
@@ -361,7 +361,7 @@ while (part = *list++) {
 ### stx_equal    
 Compares `a` and `b`'s data string.  
 ```C
-bool stx_equal (const stx_t a, const stx_t b)
+bool stx_equal (stx_t a, stx_t b)
 ```
 * Capacities are not compared.
 * Faster than `memcmp` since stored lengths are compared first.
@@ -369,7 +369,7 @@ bool stx_equal (const stx_t a, const stx_t b)
 
 ### stx_show    
 ```C
-void stx_show (const stx_t s)
+void stx_show (stx_t s)
 ```
 Utility. Prints the state of `s`.
 ```C
@@ -380,7 +380,7 @@ stx_show(foo);
 
 ### stx_check    
 ```C
-bool stx_check (const stx_t s)
+bool stx_check (stx_t s)
 ```
 Check if *s* has a valid header.  
 
@@ -478,7 +478,7 @@ stx_show(s); // "cap:12 len:6 data:'abcdef'"
 ### stx_append_count_alloc
 stx_ncata     
 ```C
-size_t stx_ncata (stx_t *pdst, const char* src, const size_t n)
+size_t stx_ncata (stx_t *pdst, const char* src, size_t n)
 ```
 Append `n` bytes of `src` to `*pdst`.
 

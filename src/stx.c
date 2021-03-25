@@ -86,7 +86,7 @@ switch(type) { \
 
 // ? min cap
 static bool 
-resize (stx_t *ps, const size_t newcap)
+resize (stx_t *ps, size_t newcap)
 {    
     stx_t s = *ps;
 
@@ -145,7 +145,7 @@ resize (stx_t *ps, const size_t newcap)
 }
 
 static int 
-append (void* dst, const char* src, const size_t n, bool alloc/*, bool strict*/) 
+append (void* dst, const char* src, size_t n, bool alloc/*, bool strict*/) 
 {
     stx_t s = alloc ? *((stx_t**)(dst)) : dst;
     
@@ -217,7 +217,7 @@ append_format (stx_t dst, const char* fmt, va_list args)
 
 
 static stx_t
-dup (const stx_t s)
+dup (stx_t s)
 {
     const void* head = HEAD(s);
     const Type type = TYPE(s);
@@ -238,7 +238,7 @@ dup (const stx_t s)
 //==== PUBLIC ==================================================================
 
 stx_t 
-stx_new (const size_t mincap)
+stx_new (size_t mincap)
 {
     const size_t cap = max(mincap, STX_MIN_CAP);
     const Type type = (cap >= 256) ? TYPE4 : TYPE1;
@@ -258,7 +258,7 @@ stx_new (const size_t mincap)
     return (const stx_t)(attr->data);
 }
 
-const stx_t
+stx_t
 stx_from (const char* src)
 {
     if (!src) return stx_new(STX_MIN_CAP);
@@ -273,8 +273,8 @@ stx_from (const char* src)
 }
 
 // todo optm strncpy_s ?
-const stx_t
-stx_from_len (const char* src, const size_t len)
+stx_t
+stx_from_len (const char* src, size_t len)
 {
     stx_t dst = stx_new(len);
     if (!src) return dst;
@@ -291,14 +291,14 @@ stx_from_len (const char* src, const size_t len)
     return dst;
 }
 
-const stx_t
-stx_dup (const stx_t s)
+stx_t
+stx_dup (stx_t s)
 {
     return CHECK(s) ? dup(s) : NULL;
 }
 
 void 
-stx_reset (const stx_t s)
+stx_reset (stx_t s)
 {
     if (!CHECK(s)) return;
     SETPROP(s, len, 0);
@@ -306,7 +306,7 @@ stx_reset (const stx_t s)
 } 
 
 void 
-stx_free (const stx_t s)
+stx_free (stx_t s)
 {
     if (!CHECK(s)) {
         #if STX_WARNINGS > 0
@@ -327,21 +327,21 @@ stx_free (const stx_t s)
 
 
 size_t 
-stx_cap (const stx_t s) 
+stx_cap (stx_t s) 
 {
     if (!CHECK(s)) return 0;  
     return GETPROP(s, cap);  
 }
 
 size_t 
-stx_len (const stx_t s) 
+stx_len (stx_t s) 
 {
     if (!CHECK(s)) return 0;
     return GETPROP(s, len);
 }
 
 size_t 
-stx_spc (const stx_t s)
+stx_spc (stx_t s)
 {
     if (!CHECK(s)) return 0;
     return GETSPC(s);
@@ -354,7 +354,7 @@ stx_append (stx_t dst, const char* src)
 }
 
 int 
-stx_append_count (stx_t dst, const char* src, const size_t n) 
+stx_append_count (stx_t dst, const char* src, size_t n) 
 {
     return append((void*)dst, src, n, false);       
 }
@@ -366,13 +366,13 @@ stx_append_alloc (stx_t* dst, const char* src)
 }
 
 size_t 
-stx_append_count_alloc (stx_t* dst, const char* src, const size_t n)
+stx_append_count_alloc (stx_t* dst, const char* src, size_t n)
 {
     return append((void*)dst, src, n, true);        
 }
 
 int 
-stx_append_format (const stx_t dst, const char* fmt, ...) 
+stx_append_format (stx_t dst, const char* fmt, ...) 
 {
     if (!CHECK(dst)) return 0;
 
@@ -385,14 +385,14 @@ stx_append_format (const stx_t dst, const char* fmt, ...)
 }
 
 bool
-stx_resize (stx_t *ps, const size_t newcap)
+stx_resize (stx_t *ps, size_t newcap)
 {
     return resize(ps, newcap);
 }
 
 // nb: memcmp(,,0) == 0
 bool 
-stx_equal (const stx_t a, const stx_t b) 
+stx_equal (stx_t a, stx_t b) 
 {
     if (!CHECK(a)||!CHECK(b)) return false;
 
@@ -403,13 +403,13 @@ stx_equal (const stx_t a, const stx_t b)
 }
 
 bool 
-stx_check (const stx_t s)
+stx_check (stx_t s)
 {
     return CHECK(s);
 }
 
 void 
-stx_show (const stx_t s)
+stx_show (stx_t s)
 {
     if (!CHECK(s)) {
         ERR("stx_show: invalid");
@@ -445,7 +445,7 @@ stx_show (const stx_t s)
 
 // todo new fit type ?
 void 
-stx_trim (const stx_t s)
+stx_trim (stx_t s)
 {
     if (!CHECK(s)) return;
     
@@ -467,7 +467,7 @@ stx_trim (const stx_t s)
 
 
 void
-stx_update (const stx_t s)
+stx_update (stx_t s)
 {
     if (!CHECK(s)) return;
     SETPROP(s, len, strlen(s));
@@ -475,7 +475,7 @@ stx_update (const stx_t s)
 
 
 stx_t*
-stx_split (const void* src, size_t srclen, const char* sep, unsigned int* outcnt)
+stx_split (const void* src, size_t srclen, const char* sep, unsigned* outcnt)
 {
     if (!src) {
         *outcnt = 0;
@@ -485,12 +485,12 @@ stx_split (const void* src, size_t srclen, const char* sep, unsigned int* outcnt
     const size_t seplen = sep ? strlen(sep) : 0;
     
     // solid ?
-    const unsigned int nparts = str_count(src,sep)+1;
+    const unsigned nparts = str_count(src,sep)+1;
     Part parts[nparts];
 
     const char* s = src;
     const char* beg = s;
-    unsigned int cnt = 0;
+    unsigned cnt = 0;
     // size_t blocksz = 0;
     stx_t* list;
 

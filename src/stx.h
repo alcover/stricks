@@ -35,31 +35,31 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 
 typedef const char* stx_t;
 
-size_t stx_cap (const stx_t s); // capacity accessor
-size_t stx_len (const stx_t s); // length accessor
-size_t stx_spc (const stx_t s); // remaining space
+size_t	stx_cap (stx_t s); // capacity accessor
+size_t	stx_len (stx_t s); // length accessor
+size_t	stx_spc (stx_t s); // remaining space
 
-stx_t stx_new (const size_t cap);
-stx_t stx_from (const char* src);
-stx_t stx_from_len (const char* src, const size_t len);
-stx_t stx_dup (const stx_t src);
-stx_t stx_load (const char* src);
+stx_t	stx_new (size_t cap);
+stx_t	stx_from (const char* src);
+stx_t	stx_from_len (const char* src, size_t len);
+stx_t	stx_dup (stx_t src);
+stx_t	stx_load (const char* src);
 
-void	stx_free (const stx_t s);
-void	stx_reset (const stx_t s);
-void	stx_update (const stx_t s);
-void	stx_trim (const stx_t s);
-void	stx_show (const stx_t s); 
-bool	stx_resize (stx_t *pstx, const size_t newcap);
-bool	stx_check (const stx_t s);
-bool	stx_equal (const stx_t a, const stx_t b);
-stx_t* 	stx_split (const void* s, size_t len, const char* sep, unsigned int* outcnt);
+void	stx_free (stx_t s);
+void	stx_reset (stx_t s);
+void	stx_update (stx_t s);
+void	stx_trim (stx_t s);
+void	stx_show (stx_t s); 
+bool	stx_resize (stx_t *pstx, size_t newcap);
+bool	stx_check (stx_t s);
+bool	stx_equal (stx_t a, stx_t b);
+stx_t* 	stx_split (const void* s, size_t len, const char* sep, unsigned* outcnt);
 
 int		stx_append (stx_t dst, const char* src);
-int		stx_append_count (stx_t dst, const char* src, const size_t n);
-int		stx_append_format (const stx_t dst, const char* fmt, ...);
+int		stx_append_count (stx_t dst, const char* src, size_t n);
+int		stx_append_format (stx_t dst, const char* fmt, ...);
 size_t	stx_append_alloc (stx_t* dst, const char* src);
-size_t	stx_append_count_alloc (stx_t* dst, const char* src, const size_t n);
+size_t	stx_append_count_alloc (stx_t* dst, const char* src, size_t n);
 
 // Shorthands
 #define stx_cat		stx_append
