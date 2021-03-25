@@ -90,7 +90,7 @@ The trick :wink: lies **before** the *stx_t* address :
 Header {   
          cap;  
          len;  
-         cookie; 
+         canary; 
          flags;
     char data[];
 }
@@ -107,7 +107,7 @@ This technique is used notably in antirez [SDS](https://github.com/antirez/sds).
 The *SBlock* is invisible to the user, who only passes `stx_t` to and from.    
 The big + is, being really `char*`, *stricks* can be passed to any (non-modifying) `<string.h>` function.  
 
-The above layout is simplified. In reality, Stricks defines two header types to optimize space for short strings, and houses the *cookie* and *flags* attributes in a separate `struct`.
+The above layout is simplified. In reality, Stricks defines two header types to optimize space for short strings, and houses the *canary* and *flags* attributes in a separate `struct`.
 
 #### example usage
 ```C
@@ -296,7 +296,7 @@ stx_free(s);
 ```
 
 :wrench: **How it works**  
-On first call, `stx_free(s)` zeroes-out the header, erasing the `cookie` canary.  
+On first call, `stx_free(s)` zeroes-out the header, erasing the `canary`.  
 All subsequent API calls check the canary and do nothing if dead.
 
 

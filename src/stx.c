@@ -31,7 +31,7 @@ typedef struct {
 } Head4;
 
 typedef struct {   
-    uint8_t cookie; 
+    uint8_t canary; 
     uint8_t flags;
     char data[]; 
 } Attr;
@@ -50,14 +50,14 @@ static_assert ((1<<TYPE4) == sizeof(Head4), "bad TYPE4");
 #define TYPE_BITS 2
 #define TYPE_MASK ((1<<TYPE_BITS)-1)
 
-#define COOKIE(s) (((uint8_t*)(s))[-2])
-#define FLAGS(s)  (((uint8_t*)(s))[-1])
+#define HEAD(s) ((char*)(s) - sizeof(Attr) - TYPESZ(TYPE(s)))
+#define ATTR(s) ((Attr*)((char*)(s) - sizeof(Attr)))
+#define FLAGS(s)  ATTR(s)->flags
+#define CANARY(s) ATTR(s)->canary
 #define TYPE(s) (FLAGS(s) & TYPE_MASK)
 #define TYPESZ(type) (1<<type)
 #define MEMSZ(type,cap) (TYPESZ(type) + sizeof(Attr) + cap + 1) //MIN_CAP ??
-#define CHECK(s) ((s) && COOKIE(s) == MAGIC)
-#define HEAD(s) ((char*)(s) - sizeof(Attr) - TYPESZ(TYPE(s)))
-#define ATTR(head,type) ((Attr*)((char*)(head) + TYPESZ(type)))
+#define CHECK(s) ((s) && CANARY(s) == MAGIC)
 #define DATA(head,type) ((char*)head + TYPESZ(type) + sizeof(Attr))
 
 #define HSETCAP(head, type, val) HSETPROP(head, type, cap, val)
@@ -82,7 +82,6 @@ switch(type) { \
 #define GETSPC(s) HGETSPC(HEAD(s), TYPE(s))
 
 //==== PRIVATE ================================================================
-
 
 // ? min cap
 static bool 
@@ -121,8 +120,8 @@ resize (stx_t *ps, size_t newcap)
         memcpy((char*)news, s, len+1); //?
         // reput len
         HSETLEN(newhead, newtype, len);
-        // reput cookie
-        COOKIE(news) = MAGIC;
+        // reput canary
+        CANARY(news) = MAGIC;
         // update flags
         FLAGS(news) = (FLAGS(news) & ~TYPE_MASK) | newtype;
     }
@@ -249,8 +248,8 @@ stx_new (size_t mincap)
     HSETCAP(head, type, cap);
     HSETLEN(head, type, 0);
 
-    Attr* attr = ATTR(head, type);
-    attr->cookie = MAGIC;
+    Attr* attr = (Attr*)((char*)(head) + TYPESZ(type));
+    attr->canary = MAGIC;
     attr->flags = type;
     attr->data[0] = 0; 
     attr->data[cap] = 0; 
@@ -420,7 +419,7 @@ stx_show (stx_t s)
     const Type type = TYPE(s);
 
     #define FMT "%zu %zu %x %x \"%s\"\n"
-    #define ARGS (size_t)(h->cap), (size_t)(h->len), COOKIE(s), FLAGS(s), s
+    #define ARGS (size_t)(h->cap), (size_t)(h->len), CANARY(s), FLAGS(s), s
 
     switch(type){
         case TYPE4: {
