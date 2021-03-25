@@ -21,10 +21,14 @@
 
 int main() {
 /********************************************************************/
+stx_t strick = stx_from("Stricks");
+stx_append_alloc (&strick, " are treats!");        
 
-stx_t s = stx_new(8);
-((char*)s)[0] = 'a';
-stx_show(s);
+printf(strick);
+
+// stx_t s = stx_new(8);
+// ((char*)s)[0] = 'a';
+// stx_show(s);
 
 // stx_t s;
 

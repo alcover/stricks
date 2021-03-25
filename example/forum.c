@@ -20,16 +20,16 @@ void send(stx_t page)
 int main()
 {
 	stx_t page = stx_new(PAGE_SZ);
-	stx_t db_text = stx_load(DB_PATH);
+	stx_t db = stx_load(DB_PATH);
 
-	if (!db_text) {
+	if (!db) {
         ERR ("Failed to load db file %s\n", DB_PATH);
         exit(EXIT_FAILURE);
     }
     
-    const size_t db_len = stx_len(db_text);
+    const size_t db_len = stx_len(db);
     int nrows;
-    stx_t *rows = stx_split(db_text, db_len, "\n", &nrows);
+    stx_t *rows = stx_split(db, db_len, "\n", &nrows);
     stx_t row;
     
     LOG ("Welcome to Stricky's forum !");
