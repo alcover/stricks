@@ -335,16 +335,6 @@ void append_alloc()
 }
 
 
-
-// void append_fmt_more(src1, src2)
-// {
-//     stx_t s = stx_new(cap);                            
-//     int rc = stx_append_format (s, fmt, src);                 
-//     assert (rc == exprc);                               
-//     ASSERT_PROPS (s, cap, explen, expdata); 
-//     stx_free(s);                                        
-// }
-
 void append_fmt()
 {
     #define APPENDF_INIT(cap, fmt, src, exprc, explen, expdata)    \
@@ -439,21 +429,20 @@ void story()
 {
     stx_t a = stx_new(foolen);
     stx_append(a,big); //nop
-    stx_append(a,foo);
-    stx_append_alloc(&a,bar); //foobar
+    stx_append(a,foo); //a==foo
 
-    stx_t b = stx_from(foo);
-    stx_t c = stx_dup(b);
-    stx_resize(&c,foobarlen);
-    stx_append_format(c,"%s",bar); //foobar
+    stx_t b = stx_from(bar);
+    stx_t c = stx_dup(b); //c==bar
 
-    // append nothing
-    stx_reset(a);
-    stx_append(a,"");
-    stx_append(c,a);
+    stx_append_alloc(&a, c); //a==foobar
 
-    assert_cmp(a,c);
-    assert(stx_equal(a,c));
+    stx_reset(b);
+    stx_resize(&b,foobarlen);
+    stx_append(b,"");
+    stx_append_format(b, "%s%s", foo, c); //b==foobar
+
+    assert_cmp(a,b);
+    assert(stx_equal(a,b));
 }
 
 //============================================================================
@@ -482,6 +471,7 @@ int main()
     run(trim);
     run(split);
     run(load);
+    run(story);
 
     printf ("unit tests OK\n");
     return 0;
