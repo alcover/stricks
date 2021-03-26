@@ -45,10 +45,9 @@ avoiding the indirection you find in `{len,*str}` schemes.
 This technique is used notably in antirez [SDS](https://github.com/antirez/sds).  
 
 The *SBlock* is invisible to the user, who only passes `stx_t` to and from.    
-The big + is, being really `char*`, *stricks* can be passed to any (non-modifying) `<string.h>` function.  
+The convenience is, being really `char*`, *stricks* can be passed to any (non-modifying) `<string.h>` function.  
 
-The above layout is simplified. In reality, Stricks defines two header types to optimize space for short strings, and houses the *canary* and *flags*  
-in a separate `struct`.
+The above layout is simplified. In reality, Stricks uses two header types to optimize space, and houses the *canary* and *flags* in a separate `struct`.
 
 
 
@@ -56,9 +55,9 @@ in a separate `struct`.
 
 Stricks aims at limiting memory faults through the API :  
 
-* typedef `const char*` forces the user to cast when she wants to write.
-* all API methods check for a valid *Header*.  
-* if invalid, no action is taken and a *falsy* value gets returned.  
+* Typedef `const char*` forces the user to cast when she wants to write.
+* All API methods check for a valid *Header*.  
+* If invalid, no action is taken and a *falsy* value is returned.  
 
 (See *[stx_free](#stx_free)*)
 
