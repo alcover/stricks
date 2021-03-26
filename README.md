@@ -13,10 +13,6 @@ Appending while keeping track of length, null-termination, realloc, etc...
 
 Speed is also a concern with excessive (sometimes implicit) calls to `strlen`.  
 
-Say you're making a forum engine, where a *page* is a fixed buffer.  
-How to safely add posts without truncation ?
-
-
 
 # Principle
 
@@ -97,6 +93,7 @@ Stricks are treats!
 #### Sample
 
 *example/forum.c* implements a mock forum with a fixed size page buffer.  
+When the next post would truncate, the buffer is flushed.  
 
 `make && cd example && ./forum`
 
