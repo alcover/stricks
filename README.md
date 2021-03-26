@@ -20,7 +20,7 @@ How to safely add posts without truncation ?
 ### The long way
 
 ```C
-char page[PAGE_SZ];
+char* page = malloc(PAGE_SZ);
 
 // Keep track
 size_t page_len = 0;
