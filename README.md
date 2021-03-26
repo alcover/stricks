@@ -17,60 +17,6 @@ Say you're making a forum engine, where a *page* is a fixed buffer.
 How to safely add posts without truncation ?
 
 
-### The long way
-
-```C
-char* page = malloc(PAGE_SZ);
-
-// Keep track
-size_t page_len = 0;
-
-while(1) {
-
-    char* user = db("user");
-    char* text = db("text");
-
-    // Will null be counted ? Lookup `snprintf`... Nope.
-    int post_len = snprintf (
-        // Keep track
-        page + page_len,
-        // Will it be null-terminated ? Lookup `snprintf`... Yep.
-        PAGE_SZ - page_len, 
-        "<div>%s<br>%s</div>", user, text
-    );
-    
-    // Don't forget that '+1'
-    if (page_len + post_len + 1 > PAGE_SZ) {
-        page[page_len] = 0;
-        break;
-    }
-    
-    // Keep track
-    page_len += post_len;
-}
-```
-
-### The stricky way
-
-```C
-stx_t page = stx_new(PAGE_SZ);
-
-while(1) {
-
-    char* user = db("user");
-    char* text = db("text");
-
-    if (stx_catf(page, "<div>%s<br>%s</div>", user, text) <= 0) 
-        break;
-}
-```
-
-### Quick sample
-
-See *example/forum.c* for a Stricks implementation of the 'forum'.  
-
-`make && cd example && ./forum`
-
 
 # Principle
 
@@ -108,17 +54,6 @@ The big + is, being really `char*`, *stricks* can be passed to any (non-modifyin
 The above layout is simplified. In reality, Stricks defines two header types to optimize space for short strings, and houses the *canary* and *flags*  
 in a separate `struct`.
 
-#### example usage
-```C
-stx_t s = stx_from("Stricks");
-stx_append_alloc (&s, " are treats!");        
-
-printf(s);
-//> Stricks are treats!
-
-```
-
-
 
 
 # Security
@@ -130,6 +65,45 @@ Stricks aims at limiting memory faults through the API :
 * if invalid, no action is taken and a *falsy* value gets returned.  
 
 (See *[stx_free](#stx_free)*)
+
+
+
+
+
+## Usage
+
+```C
+// app.c
+
+#include <stdio.h>
+#include "stx.h"
+
+int main() {
+
+    stx_t s = stx_from("Stricks");
+    stx_append_alloc (&s, " are treats!");        
+    
+    printf(s);
+
+    return 0;
+}
+```
+
+```
+$ gcc app.c libstx -o app && ./app
+Stricks are treats!
+```
+
+#### Sample
+
+*example/forum.c* implements a mock forum with a fixed size page buffer.  
+
+`make && cd example && ./forum`
+
+
+## Build & unit-test
+
+`make && make check`
 
 
 
@@ -498,36 +472,6 @@ Return code :
 * `rc >= 0`  on success, as change in length. 
 
 
-
-
-## Usage
-
-```C
-// app.c
-
-#include <stdio.h>
-#include "stx.h"
-
-int main() {
-
-    char name[] = "Alco";
-    stx_t msg = stx_new(100);
-
-    stx_catf(msg, "Hello! My name is %s.", name);
-    puts(msg);
-
-    return 0;
-}
-```
-
-```
-$ gcc app.c libstx -o app && ./app
-Hello! My name is Alco.
-```
-
-## Build & unit-test
-
-`make && make check`
 
 ## TODO
 * Slices / StringView
