@@ -9,45 +9,34 @@ Managed C strings library.
 ## Why ?
 
 Because handling C strings is tedious and error-prone.  
-Appending while keeping track of length, null-termination, realloc, etc...  
+Keeping track of length, null-byte, reallocation, etc...  
 
-Speed is also a concern with excessive (sometimes implicit) calls to `strlen`.  
+Speed is also a concern with excessive calls to `strlen()`.  
 
 
 # Principle
 
+A prefix *Header* manages the string's state and bounds.  
+The user type `stx_t` points directly to the `data` member.  
+
 ![schema](assets/schema.png)
 
-The `stx_t` (or "*strick*") type is just a normal `char*` string.  
+The `stx_t` type (or *strick*) is just a normal `char*` string.  
 
 ```C
 typedef const char* stx_t;
 ```
 
-The trick :wink: lies **before** the *stx_t* address :  
-
-```C
-Header {   
-         cap;  
-         len;  
-         canary; 
-         flags;
-    char data[];
-}
-```
-
-*Header* takes care of the string state and bounds.  
-The `stx_t` type points directly to the `data` member.  
-
-Header and data occupy a **single block** of memory (an "*SBlock*"),  
+Header and data string occupy a **single block** of memory (an "*SBlock*"),  
 avoiding the indirection you find in `{len,*str}` schemes.    
 
 This technique is used notably in antirez [SDS](https://github.com/antirez/sds).  
 
-The *SBlock* is invisible to the user, who only passes `stx_t` to and from.    
+The *SBlock* is invisible to the user, who only uses `stx_t`.    
 The convenience is, being really `char*`, *stricks* can be passed to any (non-modifying) `<string.h>` function.  
 
-The above layout is simplified. In reality, Stricks uses two header types to optimize space, and houses the *canary* and *flags* in a separate `struct`.
+The above illustration is simplified. In reality, Stricks uses two header types to optimize space, and houses the *canary* and *flags* in a separate `struct`.  
+(See *src/stx.c*)
 
 
 
@@ -55,9 +44,9 @@ The above layout is simplified. In reality, Stricks uses two header types to opt
 
 Stricks aims at limiting memory faults through the API :  
 
-* Typedef `const char*` forces the user to cast when she wants to write.
-* All API methods check for a valid *Header*.  
-* If invalid, no action is taken and a *falsy* value is returned.  
+* typedef `const char*` forces the user to cast when she wants to write.
+* all API methods check for a valid *Header*.  
+* if invalid, no action is taken and a *falsy* value is returned.  
 
 (See *[stx_free](#stx_free)*)
 
@@ -67,9 +56,9 @@ Stricks aims at limiting memory faults through the API :
 
 ## Usage
 
-```C
-// app.c
+*app.c*
 
+```C
 #include <stdio.h>
 #include "stx.h"
 
@@ -110,7 +99,6 @@ When the next post would truncate, the buffer is flushed.
 [stx_from](#stx_from)  
 [stx_from_len](#stx_from_len)  
 [stx_dup](#stx_dup)  
-[stx_load](#stx_load)  
 
 [stx_cap](#stx_cap)  
 [stx_len](#stx_len)  
@@ -199,15 +187,6 @@ stx_show(dup);
 // cap:3 len:3 data:'foo'
 
 ```
-
-### stx_load
-Read string from file.
-```C
-stx_t stx_load (const char* src_path)
-```
-
-
-
 
 ### stx_cap  
 Current capacity accessor.

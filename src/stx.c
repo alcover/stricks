@@ -525,32 +525,3 @@ stx_split (const void* src, size_t srclen, const char* sep, unsigned* outcnt)
     
     return list;
 }
-
-
-// read file
-// prob: bin str with NULs ?
-// linux optim : open_memstream, fmemopen
-
-stx_t 
-stx_load (const char* src_path)
-{
-    FILE *file = fopen(src_path, "rb");
-
-    if (!file) {
-        perror("fopen");
-        return NULL;
-    }
-    
-    fseek(file, 0, SEEK_END);
-
-    size_t len = ftell(file);
-    stx_t out = stx_new(len);
-    
-    rewind(file);
-    fread ((char*)out, len, 1, file);
-    SETPROP(out, len, len);
-
-    fclose(file);
-    
-    return out;
-}
