@@ -49,4 +49,30 @@ rand_str (size_t len, const char* charset)
     return out;
 }
 
+
+static char*
+load (const char* src_path, size_t* outlen)
+{
+    FILE *file = fopen(src_path, "rb");
+
+    if (!file) {
+        perror("fopen");
+        *outlen = 0;
+        return NULL;
+    }
+    
+    fseek(file, 0, SEEK_END);
+    size_t len = ftell(file);
+    char* out = malloc(len+1);
+    
+    rewind(file);
+    fread ((char*)out, len, 1, file);
+    out[len] = 0;
+    fclose(file);
+    
+    *outlen = len;
+    
+    return out;
+}
+
 #endif

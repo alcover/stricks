@@ -5,12 +5,14 @@
 
 #include "../src/stx.h"
 #include "../src/log.h"
+#include "../src/util.c"
 
 #define DB_PATH "posts.csv"
 #define PAGE_SZ 128
 #define POST_FMT "%s \t (+%d) %s\n"
 
 int pagen = 1;
+
 
 void send(stx_t page) 
 { 
@@ -19,8 +21,10 @@ void send(stx_t page)
 
 int main()
 {
+	size_t filelen;
+    char* db_str = load(DB_PATH, &filelen);
+    stx_t db = stx_from(db_str);
 	stx_t page = stx_new(PAGE_SZ);
-	stx_t db = stx_load(DB_PATH);
 
 	if (!db) {
         ERR ("Failed to load db file %s\n", DB_PATH);
