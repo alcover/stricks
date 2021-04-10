@@ -3,7 +3,16 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        CC: [gcc, clang]
+
+    env:
+      make_options: 'CC=${{ matrix.CC }}' 
+
     steps:
     - uses: actions/checkout@v2
-    - run: make
-    - run: make check
+    - run: make -n $make_options
+    - run: make $make_options
+    - run: make check $make_options
