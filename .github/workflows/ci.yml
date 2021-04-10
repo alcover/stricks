@@ -7,9 +7,10 @@ jobs:
       fail-fast: false
       matrix:
         CC: [gcc, clang]
+        STD: [c99, c11, c17]
 
     env:
-      make_options: 'CC=${{ matrix.CC }}' 
+      make_options: 'CC=${{ matrix.CC }} STD=${{ matrix.STD }}' 
 
     steps:
     - uses: actions/checkout@v2
