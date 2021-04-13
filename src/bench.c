@@ -20,7 +20,7 @@
 #define ASSERT(a, b) { \
     if (a!=b) { \
         fprintf(stderr, "%d: assertion %s==%s failed: %s==%d %s==%d\n", \
-            __LINE__, #a, #b, #a, (int)a, #b, (int)b); \
+            __LINE__, #a, #b, #a, (int)(a), #b, (int)b); \
         exit(1); \
     } \
 }
@@ -89,23 +89,23 @@ void SDS_from_len (const char* src, size_t len, int n)
 
 
 
-void STX_split(char* text, int textlen, char* sep)
+void STX_split (char* text, size_t textlen, char* sep)
 {
-	int nparts=0;
+	unsigned int nparts = 0;
 	stx_t* parts = stx_split(text, textlen, sep, &nparts);
 	
-	int partslen = 0;
+	size_t partslen = 0;
 	FOR(i,nparts) partslen += stx_len(parts[i]);
 	
 	ASSERT (partslen + (nparts-1)*strlen(sep), textlen);
 }
 
-void SDS_split(char* text, int textlen, char* sep)
+void SDS_split(char* text, size_t textlen, char* sep)
 {
-	int nparts=0;
+	int nparts = 0;
 	sds* parts = sdssplitlen(text, textlen, sep, strlen(sep), &nparts);
 	
-	int partslen = 0;
+	size_t partslen = 0;
 	FOR(i,nparts) partslen += sdslen(parts[i]);
 	
 	ASSERT (partslen + (nparts-1)*strlen(sep), textlen);
@@ -120,9 +120,9 @@ void SDS_split(char* text, int textlen, char* sep)
 	clock_t start = clock();\
 	for (int i=0; i<times; ++i) func args;\
 	clock_t ticks = clock() - start;\
-	unsigned mstime = round(1000*(float)ticks/CLOCKS_PER_SEC); \
+	unsigned int mstime = round(1000*(float)ticks/CLOCKS_PER_SEC); \
 	if(bold) printf(BOLD);\
-	printf ("%li ms\n", mstime); \
+	printf ("%d ms\n", mstime); \
 	if(bold) printf(RESET);\
 }
 

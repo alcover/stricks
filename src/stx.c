@@ -37,8 +37,8 @@ typedef struct {
 } Attr;
 
 typedef enum {
-    TYPE1 = (int)log2(sizeof(Head1)), 
-    TYPE4 = (int)log2(sizeof(Head4))
+    TYPE1 = 1,//(int)log2(sizeof(Head1)), 
+    TYPE4 = 3//(int)log2(sizeof(Head4))
 } Type;
 
 typedef struct {uint32_t off; uint32_t len;} Part; // for split()
@@ -474,7 +474,8 @@ stx_update (stx_t s)
 
 
 stx_t*
-stx_split (const void* src, size_t srclen, const char* sep, unsigned* outcnt)
+stx_split (const void* src, size_t srclen, const char* sep, 
+    unsigned int* outcnt)
 {
     if (!src) {
         *outcnt = 0;

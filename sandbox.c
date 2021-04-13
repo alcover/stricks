@@ -24,7 +24,7 @@ int main() {
 stx_t strick = stx_from("Stricks");
 stx_append_alloc (&strick, " are treats!");        
 
-printf(strick);
+printf("%s\n", strick);
 
 // stx_t s = stx_new(8);
 // ((char*)s)[0] = 'a';

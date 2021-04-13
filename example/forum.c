@@ -16,7 +16,7 @@ int pagen = 1;
 
 void send(stx_t page) 
 { 
-	printf ("--- PAGE %d (%zu/%zu bytes) ---\n\n%s\n", pagen++, stx_len(page), PAGE_SZ, page); 
+	printf ("--- PAGE %d (%zu/%d bytes) ---\n\n%s\n", pagen++, stx_len(page), PAGE_SZ, page); 
 }
 
 int main()
@@ -32,7 +32,7 @@ int main()
     }
     
     const size_t db_len = stx_len(db);
-    int nrows;
+    unsigned int nrows;
     stx_t *rows = stx_split(db, db_len, "\n", &nrows);
     stx_t row;
     
@@ -43,7 +43,7 @@ int main()
 
         if (!stx_len(row)) break;
         
-        int ncols; 
+        unsigned int ncols; 
         //todo free
         stx_t *cols = stx_split(row, stx_len(row), ",", &ncols);
         
