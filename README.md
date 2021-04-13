@@ -10,14 +10,13 @@ Managed C strings library.
 
 Because handling C strings is tedious and error-prone.  
 Keeping track of length, null-byte, reallocation, etc...  
-
 Speed is also a concern with excessive calls to `strlen()`.  
 
 
 # Principle
 
-A prefix *Header* manages the string's state and bounds.  
-The user type `stx_t` points directly to the `data` member.  
+A prefix header manages the string's state and bounds.  
+The user-facing type `stx_t` points directly to the `data` member.  
 
 ![schema](assets/schema.png)
 
@@ -27,16 +26,15 @@ The `stx_t` type (or *strick*) is just a normal `char*` string.
 typedef const char* stx_t;
 ```
 
-Header and data string occupy a **single block** of memory (an "*SBlock*"),  
+Header and string occupy a **single block** of memory (an "*SBlock*"),  
 avoiding the indirection you find in `{len,*str}` schemes.    
 
-This technique is used notably in antirez [SDS](https://github.com/antirez/sds).  
+This technique is used notably by antirez/[SDS](https://github.com/antirez/sds).  
 
 The *SBlock* is invisible to the user, who only uses `stx_t`.    
-The convenience is, being really `char*`, *stricks* can be passed to any (non-modifying) `<string.h>` function.  
+Being really a `char*`, *stricks* can be passed to any (non-modifying) `<string.h>` functions.  
 
-The above illustration is simplified. In reality, Stricks uses two header types to optimize space, and houses the *canary* and *flags* in a separate `struct`.  
-(See *src/stx.c*)
+The above illustration is simplified. In reality, Stricks uses two header types to optimize space, and houses the *canary* and *flags* in a separate *struct*. (See *src/stx.c*)
 
 
 
@@ -45,7 +43,7 @@ The above illustration is simplified. In reality, Stricks uses two header types 
 Stricks aims at limiting memory faults through the API :  
 
 * typedef `const char*` forces the user to cast when she wants to write.
-* all API methods check for a valid *Header*.  
+* all methods check for a valid *Header*.  
 * if invalid, no action is taken and a *falsy* value is returned.  
 
 (See *[stx_free](#stx_free)*)
@@ -56,17 +54,16 @@ Stricks aims at limiting memory faults through the API :
 
 ## Usage
 
-*app.c*
 
 ```C
+// app.c
 #include <stdio.h>
 #include "stx.h"
 
 int main() {
 
     stx_t s = stx_from("Stricks");
-    stx_append_alloc (&s, " are treats!");        
-    
+    stx_append_alloc(&s, " are treats!");        
     printf(s);
 
     return 0;
@@ -80,7 +77,7 @@ Stricks are treats!
 
 #### Sample
 
-*example/forum.c* implements a mock forum with a fixed size page buffer.  
+*example/forum.c* implements a mock forum with fixed size pages.  
 When the next post would truncate, the buffer is flushed.  
 
 `make && cd example && ./forum`
@@ -149,27 +146,27 @@ stx_show(s);
 
 ```
 
+
 ### stx_from_len
+
 Creates a new *strick* with at most `len` bytes from `src`.  
+
 ```C
 stx_t stx_from_len (const char* src, size_t len)
 ```
-If `len > strlen(src)`, the resulting capacity is `len`.  
-Capacity gets trimmed down to length.
 
 ```C
-stx_t s = stx_from_len("Stricks", 7);
+stx_t s = stx_from_len("Hello!", 4);
 stx_show(s); 
-// cap:7 len:7 data:'Stricks'
+// cap:4 len:4 data:'Hell'
+```
 
-stx_t s = stx_from_len("Stricks", 10);
+If `len > strlen(src)`, the resulting capacity is `len`.  
+
+```C
+stx_t s = stx_from_len("Hello!", 10);
 stx_show(s); 
-// cap:10 len:7 data:'Stricks'
-
-stx_t s = stx_from_len("Stricks", 3);
-stx_show(s); 
-// cap:3 len:3 data:'Str'
-
+// cap:10 len:6 data:'Hello!'
 ```
 
 ### stx_dup
@@ -209,7 +206,7 @@ size_t stx_spc (stx_t s)
 
 
 ### stx_reset    
-Sets data length to zero.  
+Sets length to zero.  
 ```C
 void stx_reset (stx_t s)
 ```
@@ -222,10 +219,10 @@ stx_show(s);
 ```
 
 ### stx_free
+Releases the enclosing SBlock.  
 ```C
 void stx_free (stx_t s)
 ```
-Releases the enclosing SBlock.  
 
 :cake: **Security** :  
 Once the block is freed, no *use-after-free* or *double-free* should be possible through the Strick API :  
@@ -248,7 +245,7 @@ stx_free(s);
 
 :wrench: **How it works**  
 On first call, `stx_free(s)` zeroes-out the header, erasing the `canary`.  
-All subsequent API calls check the canary and do nothing if dead.
+All subsequent API calls, seeing no canary, do nothing.
 
 
 ### stx_resize    
@@ -285,12 +282,12 @@ Capacity remains the same.
 
 
 ### stx_split
-Splits a *strick* **or** string on separator `sep` into an array of *stricks*. 
+Splits a *strick* or string on separator `sep` into an array of *stricks*. 
 ```C
 stx_t*
 stx_split (const void* s, const char* sep, unsigned int *outcnt)
 ```
-`*outcnt` gets the array length.
+`*outcnt` receives the resulting array length.
 
 ```C
 stx_t s = stx_from("foo, bar");
@@ -306,7 +303,7 @@ for (int i = 0; i < cnt; ++i) {
 // cap:3 len:3 data:'bar'
 
 ```
-Or more comfortably (using the list sentinel)
+Or comfortably using the list sentinel
 
 ```C
 while (part = *list++) {
@@ -325,10 +322,10 @@ bool stx_equal (stx_t a, stx_t b)
 
 
 ### stx_show    
+Utility printing the state of `s`.
 ```C
 void stx_show (stx_t s)
 ```
-Utility. Prints the state of `s`.
 ```C
 stx_show(foo);
 // cap:8 len:5 data:'hello'
@@ -336,10 +333,10 @@ stx_show(foo);
 
 
 ### stx_check    
+Check if *s* has a valid header.  
 ```C
 bool stx_check (stx_t s)
 ```
-Check if *s* has a valid header.  
 
 
 ### stx_append
@@ -445,10 +442,3 @@ Append `n` bytes of `src` to `*pdst`.
 Return code :  
 * `rc = 0`   on error.  
 * `rc >= 0`  on success, as change in length. 
-
-
-
-## TODO
-* Slices / StringView
-* Utf-8 ?
-* More high-level methods ?

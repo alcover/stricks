@@ -20,7 +20,12 @@
 #define s256 x4(s32) x4(s32)
 
 int main() {
+
 /********************************************************************/
+
+stx_t s = stx_from_len("Stricks", 10);
+stx_show(s); 
+
 stx_t strick = stx_from("Stricks");
 stx_append_alloc (&strick, " are treats!");        
 
