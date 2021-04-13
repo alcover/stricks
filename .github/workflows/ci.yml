@@ -7,18 +7,10 @@ jobs:
       fail-fast: false
       matrix:
         CC: [gcc, clang]
-        STD: [c99, c11, c17]
-        OPTIM: [-O0]
-        include:
-          - CC: gcc
-            STD: c17
-            OPTIM: -O3
-          - CC: clang
-            STD: c17
-            OPTIM: -O3
+        OPTIM: [-O0, -O2]
 
     env:
-      make_options: 'CC=${{ matrix.CC }} STD=${{ matrix.STD }} OPTIM=${{ matrix.OPTIM }}' 
+      make_options: 'CC=${{ matrix.CC }} OPTIM=${{ matrix.OPTIM }}'
 
     steps:
     - uses: actions/checkout@v2
