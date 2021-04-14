@@ -36,9 +36,10 @@ typedef struct {
     char data[]; 
 } Attr;
 
+// clang rejects comptime math ?
 typedef enum {
-    TYPE1 = 1,//(int)log2(sizeof(Head1)), 
-    TYPE4 = 3//(int)log2(sizeof(Head4))
+    TYPE1 = 1, // (int)log2(sizeof(Head1)), 
+    TYPE4 = 3  // (int)log2(sizeof(Head4))
 } Type;
 
 typedef struct {uint32_t off; uint32_t len;} Part; // for split()
@@ -49,6 +50,7 @@ static_assert ((1<<TYPE4) == sizeof(Head4), "bad TYPE4");
 #define MAGIC 0xaa
 #define TYPE_BITS 2
 #define TYPE_MASK ((1<<TYPE_BITS)-1)
+#define SMALL_CAP 255
 
 #define HEAD(s) ((char*)(s) - sizeof(Attr) - TYPESZ(TYPE(s)))
 #define ATTR(s) ((Attr*)((char*)(s) - sizeof(Attr)))
@@ -83,13 +85,13 @@ switch(type) { \
 
 //==== PRIVATE ================================================================
 
-// ? min cap
+// enforce STX_MIN_CAP ?
 static bool 
 resize (stx_t *ps, size_t newcap)
 {    
     stx_t s = *ps;
 
-    if (!CHECK(s)||!newcap) return false; //?
+    if (!CHECK(s)||!newcap) return false;
 
     const void* head = HEAD(s);
     const Type type = TYPE(s);
@@ -98,53 +100,49 @@ resize (stx_t *ps, size_t newcap)
 
     if (newcap == cap) return true;
     
-    const Type newtype = (newcap >= 256) ? TYPE4 : TYPE1;
+    const Type newtype = (newcap > SMALL_CAP) ? TYPE4 : TYPE1;
     const bool sametype = (newtype == type);
+    const size_t newsize = MEMSZ(newtype, newcap);
    
-    void* newhead;
-
-    if (sametype)
-        newhead = STX_REALLOC ((void*)head, MEMSZ(type, newcap));
-    else {
-        newhead = STX_MALLOC (MEMSZ(newtype, newcap));
-    }
+    void* newhead = sametype ? STX_REALLOC((void*)head, newsize)
+                             : STX_MALLOC (newsize);
 
     if (!newhead) {
         ERR ("stx_resize: realloc failed\n");
         return false;
     }
     
-    stx_t news = DATA(newhead, newtype);
+    stx_t newdata = DATA(newhead, newtype);
     
     if (!sametype) {
-        memcpy((char*)news, s, len+1); //?
+        memcpy((char*)newdata, s, len+1); //?
         // reput len
         HSETLEN(newhead, newtype, len);
         // reput canary
-        CANARY(news) = MAGIC;
+        CANARY(newdata) = MAGIC;
         // update flags
-        FLAGS(news) = (FLAGS(news) & ~TYPE_MASK) | newtype;
+        FLAGS(newdata) = (FLAGS(newdata) & ~TYPE_MASK) | newtype;
+
+        free((void*)head);
     }
     
     // truncated
-    if (newcap < len) {
-        #if STX_WARNINGS > 0
-            ERR("stx_resize: truncated");
-        #endif
-        HSETLEN(newhead, newtype, newcap);
-    }
+    if (newcap < len) HSETLEN(newhead, newtype, newcap);
 
     // update cap
     HSETCAP(newhead, newtype, newcap); 
-    // update cap sentinel
-    ((char*)(news))[newcap] = 0;
     
-    *ps = news;
+    // update cap sentinel
+    ((char*)(newdata))[newcap] = 0;
+    
+    *ps = newdata;
+
     return true;
 }
 
+
 static int 
-append (void* dst, const char* src, size_t n, bool alloc/*, bool strict*/) 
+append (void* dst, const char* src, size_t n, bool alloc) 
 {
     stx_t s = alloc ? *((stx_t**)(dst)) : dst;
     
@@ -240,7 +238,7 @@ stx_t
 stx_new (size_t mincap)
 {
     const size_t cap = max(mincap, STX_MIN_CAP);
-    const Type type = (cap >= 256) ? TYPE4 : TYPE1;
+    const Type type = (cap > SMALL_CAP) ? TYPE4 : TYPE1;
 
     void* head = STX_MALLOC(MEMSZ(type, cap));
     if (!head) return NULL;
@@ -500,7 +498,7 @@ stx_split (const void* src, size_t srclen, const char* sep,
 
     while (end) {
         const size_t len = end-beg;
-        // Type type = len < 256 ? TYPE1 : TYPE4;
+        // Type type = len <= SMALL_CAP ? TYPE1 : TYPE4;
         // size_t partsz = MEMSZ(type,len);
         // blocksz += partsz;
         parts[cnt++] = (Part){beg-s, len};

@@ -23,13 +23,15 @@ int main() {
 
 /********************************************************************/
 
-stx_t s = stx_from_len("Stricks", 10);
-stx_show(s); 
+// stx_t s = stx_from_len("Stricks", 10);
+// stx_show(s); 
 
-stx_t strick = stx_from("Stricks");
-stx_append_alloc (&strick, " are treats!");        
+stx_t s = stx_from("Stricks");
+// stx_append_alloc (&s, " are treats!");        
+stx_resize(&s, 300);
 
-printf("%s\n", strick);
+printf("%s\n", s);
+stx_free(s);
 
 // stx_t s = stx_new(8);
 // ((char*)s)[0] = 'a';
