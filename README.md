@@ -92,31 +92,31 @@ When the next post would truncate, the buffer is flushed.
 
 # API
 
-- [stx_new](#stx_new)  
-- [stx_from](#stx_from)  
-- [stx_from_len](#stx_from_len)  
-- [stx_dup](#stx_dup)  
+[stx_new](#stx_new)  
+[stx_from](#stx_from)  
+[stx_from_len](#stx_from_len)  
+[stx_dup](#stx_dup)  
 
-- [stx_cap](#stx_cap)  
-- [stx_len](#stx_len)  
-- [stx_spc](#stx_spc)  
+[stx_cap](#stx_cap)  
+[stx_len](#stx_len)  
+[stx_spc](#stx_spc)  
 
-- [stx_free](#stx_free)  
-- [stx_reset](#stx_reset)  
-- [stx_update](#stx_update)  
-- [stx_trim](#stx_trim)  
-- [stx_show](#stx_show)  
-- [stx_resize](#stx_resize)  
-- [stx_check](#stx_check)  
-- [stx_equal](#stx_equal)  
-- [stx_split](#stx_split)  
-- [stx_list_free](#stx_list_free)  
+[stx_free](#stx_free)  
+[stx_reset](#stx_reset)  
+[stx_update](#stx_update)  
+[stx_trim](#stx_trim)  
+[stx_show](#stx_show)  
+[stx_resize](#stx_resize)  
+[stx_check](#stx_check)  
+[stx_equal](#stx_equal)  
+[stx_split](#stx_split)  
+[stx_list_free](#stx_list_free)  
 
-- [stx_append](#stx_append) / stx_cat  
-- [stx_append_count](#stx_append_count) / stx_ncat  
-- [stx_append_format](#stx_append_format) / stx_catf  
-- [stx_append_alloc](#stx_append_alloc) / stx_cata  
-- [stx_append_count_alloc](#stx_append_count_alloc) / stx_ncata  
+[stx_append](#stx_append) / stx_cat  
+[stx_append_count](#stx_append_count) / stx_ncat  
+[stx_append_format](#stx_append_format) / stx_catf  
+[stx_append_alloc](#stx_append_alloc) / stx_cata  
+[stx_append_count_alloc](#stx_append_count_alloc) / stx_ncata  
 
 
 
