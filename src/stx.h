@@ -1,5 +1,5 @@
 /*
-Stricks v0.3.1
+Stricks v0.3.2
 Copyright (C) 2021 - Francois Alcover <francois[@]alcover.fr>
 NO WARRANTY EXPRESSED OR IMPLIED.
 */
@@ -54,6 +54,7 @@ bool	stx_check (stx_t s);
 bool	stx_equal (stx_t a, stx_t b);
 stx_t* 	stx_split (const void* s, size_t len, const char* sep, 
 	unsigned int* outcnt);
+void	stx_list_free (const stx_t* list);
 
 int		stx_append (stx_t dst, const char* src);
 int		stx_append_count (stx_t dst, const char* src, size_t n);

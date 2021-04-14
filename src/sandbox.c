@@ -10,9 +10,9 @@
 #include <errno.h>
 #include <stdarg.h>
 
-#include "src/stx.h"
-#include "src/log.h"
-#include "src/util.c"
+#include "stx.h"
+#include "log.h"
+#include "util.c"
 
 #define x4(s) s s s s
 #define s8 "[8.....]"
@@ -23,24 +23,22 @@ int main() {
 
 /********************************************************************/
 
-// stx_t s = stx_from_len("Stricks", 10);
-// stx_show(s); 
+// stx_t s = stx_from("Stricks");
+// // stx_append_alloc (&s, " are treats!");        
+// stx_resize(&s, 300);
 
-stx_t s = stx_from("Stricks");
-// stx_append_alloc (&s, " are treats!");        
-stx_resize(&s, 300);
-
-printf("%s\n", s);
-stx_free(s);
+// printf("%s\n", s);
 
 // stx_t s = stx_new(8);
 // ((char*)s)[0] = 'a';
 // stx_show(s);
 
-// stx_t s;
-
-// s = stx_from("abc", 0);
-// stx_show(s);
+stx_t s  = stx_from("a,b");
+unsigned int len;
+stx_t *list = stx_split(s, strlen(s),",", &len);
+printf("%s|%s\n", list[0], list[1]);
+stx_free(s);
+stx_list_free(list);
 
 // s = stx_from(s256, 0);
 // stx_show(s);

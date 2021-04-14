@@ -9,7 +9,7 @@ LINK = $(CP) $^ -o $@
 lib		= bin/libstx
 unit 	= bin/unit
 bench 	= bin/bench
-example	= example/forum
+example	= bin/example
 sandbox = bin/sandbox
 sds 	= bin/sds
 
@@ -31,11 +31,11 @@ $(bench): src/bench.c $(lib) $(sds)
 	@ echo $@
 	@ $(LINK) -lm
 
-$(example): example/forum.c $(lib)
+$(example): src/example.c $(lib)
 	@ echo $@
 	@ $(LINK)
 
-$(sandbox): sandbox.c $(lib)
+$(sandbox): src/sandbox.c $(lib)
 	@ echo $@
 	@ $(LINK)
 
@@ -50,4 +50,4 @@ bench:
 	@ ./$(bench)
 
 clean:
-	@ rm -f bin/* $(example)
+	@ rm -f bin/*

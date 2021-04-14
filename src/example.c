@@ -6,8 +6,8 @@
 #include "../src/stx.h"
 #include "../src/log.h"
 #include "../src/util.c"
-
-#define DB_PATH "posts.csv"
+ 
+#define DB_PATH "assets/posts.csv"
 #define PAGE_SZ 128
 #define POST_FMT "%s \t (+%d) %s\n"
 
@@ -34,24 +34,25 @@ int main()
     const size_t db_len = stx_len(db);
     unsigned int nrows;
     stx_t *rows = stx_split(db, db_len, "\n", &nrows);
-    stx_t row;
     
     LOG ("Welcome to Stricky's forum !");
     LOG ("db : %zu bytes, %d rows\n", db_len, nrows-1);
 
-    while ((row = *rows++)) {
+    for (int i = 0; i < nrows; ++i)
+    {
+        stx_t row = rows[i];
 
         if (!stx_len(row)) break;
         
         unsigned int ncols; 
-        //todo free
-        stx_t *cols = stx_split(row, stx_len(row), ",", &ncols);
+        stx_t *columns = stx_split(row, stx_len(row), ",", &ncols);
         
-        int votes = atoi(cols[0]);
-        stx_t user = cols[1];
-        stx_t text = cols[2];
-        
+        int votes = atoi(columns[0]);
+        stx_t user = columns[1];
+        stx_t text = columns[2];
+
         int appended = stx_catf (page, POST_FMT, user, votes, text); 
+        
 
        	// post too long, so flush page, reset and re-add post 
         if (appended <= 0) {
@@ -59,12 +60,17 @@ int main()
         	stx_reset(page);
         	stx_catf (page, POST_FMT, user, votes, text);
         }
+        
+        stx_list_free(columns);
     }
 
 	// page not empty, send it.
 	if (stx_len(page)) send(page);
 
+    stx_list_free(rows);
     stx_free(page);
+    stx_free(db);
+    free(db_str);
 	
 	return 0;
 } 

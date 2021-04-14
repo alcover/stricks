@@ -1,5 +1,5 @@
 /*
-Stricks v0.3.1
+Stricks v0.3.2
 Copyright (C) 2021 - Francois Alcover <francois[@]alcover.fr>
 NO WARRANTY EXPRESSED OR IMPLIED.
 */
@@ -523,4 +523,17 @@ stx_split (const void* src, size_t srclen, const char* sep,
     *outcnt = cnt;
     
     return list;
+}
+
+
+// implies sentinel !
+void
+stx_list_free (const stx_t* list)
+{
+    const stx_t* l = list;
+    stx_t s;
+
+    while (s = *l++) stx_free(s);
+    
+    free((void*)list);
 }
