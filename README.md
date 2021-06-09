@@ -126,29 +126,29 @@ split
 
 ```
 To run the benchmark :  
-`make && make check`
+`make && make bench`
 
 
 # API
 
-###create
+### create
 [stx_new](#stx_new)  
 [stx_from](#stx_from)  
 [stx_from_len](#stx_from_len)  
 [stx_dup](#stx_dup)  
 
-###append
-[stx_append_strict](#stx_append_strict) / stx_cat  
-[stx_append_count](#stx_append_count) / stx_ncat  
-[stx_append_format](#stx_append_format) / stx_catf  
-[stx_append](#stx_append) / stx_cata  
-[stx_append_count_alloc](#stx_append_count_alloc) / stx_ncata  
+### append
+[stx_append_strict](#stx_append_strict)
+[stx_append_count](#stx_append_count)
+[stx_append_format](#stx_append_format)
+[stx_append](#stx_append)
+[stx_append_count_alloc](#stx_append_count_alloc)
 
-###split
+### split
 [stx_split](#stx_split)  
 [stx_list_free](#stx_list_free)  
 
-###assess
+### assess
 [stx_cap](#stx_cap)  
 [stx_len](#stx_len)  
 [stx_spc](#stx_spc)  
@@ -156,7 +156,7 @@ To run the benchmark :
 [stx_equal](#stx_equal)  
 [stx_show](#stx_show)  
 
-###adjust/dispose
+### adjust/dispose
 [stx_free](#stx_free)  
 [stx_reset](#stx_reset)  
 [stx_resize](#stx_resize)  
