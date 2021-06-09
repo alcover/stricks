@@ -8,7 +8,7 @@ Managed C strings library.
 
 ## Why ?
 
-Because handling C strings is tedious and error-prone.  
+Handling C strings is hard.  
 Keeping track of length, null-byte, reallocation, etc...  
 Speed is also a concern with excessive calls to `strlen()`.  
 
@@ -29,7 +29,8 @@ typedef const char* stx_t;
 Header and string occupy a **single block** of memory (an "*SBlock*"),  
 avoiding the indirection you find in `{len,*str}` schemes.    
 
-This technique is used notably by antirez/[SDS](https://github.com/antirez/sds).  
+This technique is used notably by antirez/[SDS](https://github.com/antirez/sds),  
+now part of [Redis](https://github.com/redis/redis).
 
 The *SBlock* is invisible to the user, who only uses `stx_t`.    
 Being really a `char*`, *stricks* can be passed to any (non-modifying) `<string.h>` functions.  
@@ -63,7 +64,7 @@ Stricks aims at limiting memory faults through the API :
 int main() {
 
     stx_t s = stx_from("Stricks");
-    stx_append_alloc(&s, " are treats!");        
+    stx_append_strict(&s, " are treats!");        
     printf(s);
 
     return 0;
@@ -87,36 +88,81 @@ When the next post would truncate, the buffer is flushed.
 
 `make && make check`
 
+## Speed
 
+Stricks is quite fast. Seemingly faster than SDS.  
+(At least for the standalone SDS, not part of Redis).
+
+```
+new+free
+---------------
+10 parts (x1000) :
+      SDS  0.83 ticks
+  Stricks  0.59 ticks
+1000 parts (x10) :
+      SDS  103.40 ticks
+  Stricks  74.60 ticks
+
+append
+---------------
+10 parts (x1000) :
+      SDS  0.40 ticks
+  Stricks  0.31 ticks
+1000 parts (x10) :
+      SDS  31.40 ticks
+  Stricks  16.80 ticks
+
+split
+---------------
+50 parts (x100001) :
+      SDS  3.44 ticks
+  Stricks  1.72 ticks
+5000 parts (x1001) :
+      SDS  310.93 ticks
+  Stricks  160.97 ticks
+5000000 parts (x2) :
+      SDS  423384.50 ticks
+  Stricks  191145.00 ticks
+
+```
+To run the benchmark :  
+`make && make check`
 
 
 # API
 
+###create
 [stx_new](#stx_new)  
 [stx_from](#stx_from)  
 [stx_from_len](#stx_from_len)  
 [stx_dup](#stx_dup)  
 
-[stx_cap](#stx_cap)  
-[stx_len](#stx_len)  
-[stx_spc](#stx_spc)  
+###append
+[stx_append_strict](#stx_append_strict) / stx_cat  
+[stx_append_count](#stx_append_count) / stx_ncat  
+[stx_append_format](#stx_append_format) / stx_catf  
+[stx_append](#stx_append) / stx_cata  
+[stx_append_count_alloc](#stx_append_count_alloc) / stx_ncata  
 
-[stx_free](#stx_free)  
-[stx_reset](#stx_reset)  
-[stx_adjust](#stx_adjust)  
-[stx_trim](#stx_trim)  
-[stx_show](#stx_show)  
-[stx_resize](#stx_resize)  
-[stx_check](#stx_check)  
-[stx_equal](#stx_equal)  
+###split
 [stx_split](#stx_split)  
 [stx_list_free](#stx_list_free)  
 
-[stx_append](#stx_append) / stx_cat  
-[stx_append_count](#stx_append_count) / stx_ncat  
-[stx_append_format](#stx_append_format) / stx_catf  
-[stx_append_alloc](#stx_append_alloc) / stx_cata  
-[stx_append_count_alloc](#stx_append_count_alloc) / stx_ncata  
+###assess
+[stx_cap](#stx_cap)  
+[stx_len](#stx_len)  
+[stx_spc](#stx_spc)  
+[stx_check](#stx_check)  
+[stx_equal](#stx_equal)  
+[stx_show](#stx_show)  
+
+###adjust/dispose
+[stx_free](#stx_free)  
+[stx_reset](#stx_reset)  
+[stx_resize](#stx_resize)  
+[stx_trim](#stx_trim)  
+[stx_adjust](#stx_adjust)  
+
 
 
 
@@ -230,11 +276,11 @@ Once the block is freed, no *use-after-free* or *double-free* should be possible
 
 ```C
 stx_t s = stx_new(16);
-stx_append(s, "foo");
+stx_append_strict(s, "foo");
 stx_free(s);
 
 // Use-after-free
-stx_append(s, "bar");
+stx_append_strict(s, "bar");
 // No action. Returns 0.  
 printf("%zu\n", stx_len(s));
 // 0
@@ -285,8 +331,8 @@ Capacity remains the same.
 ### stx_split
 Splits a *strick* or string on separator `sep` into an array of *stricks*. 
 ```C
-stx_t*
-stx_split (const void* s, const char* sep, unsigned int *outcnt)
+stx_t*  
+stx_split (const char* src, const char* sep, size_t* outcnt);
 ```
 `*outcnt` receives the resulting array length.
 
@@ -310,6 +356,13 @@ Or comfortably using the list sentinel
 while (part = *list++) {
     stx_show(part);
 }
+```
+
+### stx_split_len
+Core split method. Arbitrary lengths are passed by caller. 
+```C
+stx_t*  
+stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, size_t* outcnt)
 ```
 
 ### stx_list_free
@@ -346,12 +399,37 @@ bool stx_check (stx_t s)
 ```
 
 
+
 ### stx_append
-stx_cat  
+  
 ```C
-int stx_append (stx_t dst, const char* src)
+size_t
+stx_append (stx_t* dst, const char* src, size_t len)
 ```
-Appends `src` to `dst`.  
+Appends `len` bytes from `src` to `*dst`.
+
+* If over capacity, `*dst` gets **reallocated**.
+* reallocation reserves 2x the needed memory.
+
+Return code :  
+* `rc = 0`   on error.  
+* `rc >= 0`  on success, as change in length.  
+
+```C
+stx_t s = stx_new(3);  
+stx_append(s, "abc"); 
+stx_append(s, "def"); //-> 3 
+stx_show(s); // "cap:12 len:6 data:'abcdef'"
+```
+
+
+### stx_append_strict
+ 
+```C
+int
+stx_append_strict (stx_t dst, const char* src, size_t len)
+```
+Appends `len` bytes from `src` to `dst`.  
 * **No reallocation**.
 * Nothing done if input exceeds remaining space.
 
@@ -362,33 +440,12 @@ Return code :
 
 ```C
 stx_t s = stx_new(5);  
-stx_cat(s, "abc"); //-> 3
+stx_append_strict(s, "abc"); //-> 3
 printf("%s", s); // "abc"  
-stx_cat(s, "def"); //-> -6  (needs capacity = 6)
+stx_append_strict(s, "def"); //-> -6  (needs capacity = 6)
 printf("%s", s); // "abc"
 ```
 
-
-### stx_append_count
-stx_ncat  
-```C
-int stx_ncat (stx_t dst, const char* src, size_t n)
-```
-Appends at most `n` bytes from `src` to `dst`.  
-* **No reallocation**.
-* if `n` is zero, `strlen(src)` is used.
-* Nothing done if input exceeds remaining space.
-
-Return code :  
-* `rc >= 0`  on success, as change in length.  
-* `rc < 0`   on potential truncation, as needed capacity.
-* `rc = 0`   on error.  
-
-```C
-stx_t s = stx_new(5);  
-stx_ncat(s, "abc", 2); //-> 2
-printf("%s", s); // "ab"
-```
 
 
 ### stx_append_format
@@ -412,40 +469,3 @@ stx_catf (foo, "%s has %d apples", "Mary", 10);
 stx_show(foo);
 // cap:32 len:18 data:'Mary has 10 apples'
 ```
-
-
-### stx_append_alloc
-stx_cata     
-```C
-size_t stx_cata (stx_t *pdst, const char* src)
-```
-Appends `src` to `*pdst`.
-
-* If over capacity, `*pdst` gets **reallocated**.
-* reallocation reserves 2x the needed memory.
-
-Return code :  
-* `rc = 0`   on error.  
-* `rc >= 0`  on success, as change in length.  
-
-```C
-stx_t s = stx_new(3);  
-stx_cat(s, "abc"); 
-stx_cata(s, "def"); //-> 3 
-stx_show(s); // "cap:12 len:6 data:'abcdef'"
-```
-
-
-### stx_append_count_alloc
-stx_ncata     
-```C
-size_t stx_ncata (stx_t *pdst, const char* src, size_t n)
-```
-Append `n` bytes of `src` to `*pdst`.
-
-* If n is zero, `strlen(src)` is used.
-* If over capacity, `*pdst` gets reallocated.
-
-Return code :  
-* `rc = 0`   on error.  
-* `rc >= 0`  on success, as change in length. 
