@@ -1,23 +1,11 @@
 #ifndef ALCO_UTIL_H
 #define ALCO_UTIL_H
 
-#define max(a,b) ({ \
-__typeof__ (a) _a = (a); \
-__typeof__ (b) _b = (b); \
-_a > _b ? _a : _b; })
-
+#define GETBIT(n,i) (((n) >> (i)) & 1)
+#define SETBIT(n,i) (n) |= (1 << (i))
 
 static inline size_t
-strnlen (const char *s, const size_t n)
-{
-	size_t len = 0;
-	for (; len < n && s[len]; ++len);
-	return len;
-}
-
-
-static inline size_t
-str_count (const char *str, const char* tok)
+str_count (const char *str, const char* tok/*, size_t* outlen*/)
 {
     if (!str||!tok) return 0;
 
@@ -25,28 +13,46 @@ str_count (const char *str, const char* tok)
     if (!toklen) return 0;
     
     size_t cnt = 0;
+    const char* s = str; 
     
-    while ((str = strstr(str,tok))) {
+    while ((s = strstr(s,tok))) {
         ++cnt;
-        str += toklen;
+        s += toklen;
     }
 
     return cnt;
 }
 
 
+// draft
 static char*
-rand_str (size_t len, const char* charset)
+str_repeat (const char* pat, int n)
 {
-    const int setlen = strlen(charset);
-    char* out = malloc(len+1);    
-    char* p=out;
-
-    while (len--)
-        *p++ = charset[rand() % (setlen-1)];
+    const size_t patlen = strlen(pat);
+    const size_t retlen = n*patlen;
+    char* ret = malloc(retlen+1);
     
-    *p = 0;   
-    return out;
+    *ret = 0;
+    ret[retlen] = 0;
+    for(int i=0;i<n;++i) memcpy(ret+i*patlen, pat, patlen);
+
+    return ret;
+}
+
+static const char*
+str_cat (const char* a, const char* b)
+{
+    if(!a) return b;
+    if(!b) return a;
+
+    const size_t len = strlen(a) + strlen(b);
+    char* ret = malloc(len+1);
+    ret[0] = 0;
+    ret[len] = 0;
+    strcat(ret,a);
+    strcat(ret,b);
+
+    return ret;
 }
 
 

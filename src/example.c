@@ -32,33 +32,33 @@ int main()
     }
     
     const size_t db_len = stx_len(db);
-    unsigned int nrows;
-    stx_t *rows = stx_split(db, db_len, "\n", &nrows);
+    size_t nrows;
+    stx_t *rows = stx_split(db, "\n", &nrows);
     
     LOG ("Welcome to Stricky's forum !");
     LOG ("db : %zu bytes, %d rows\n", db_len, nrows-1);
 
-    for (int i = 0; i < nrows; ++i)
+    for (size_t i = 0; i < nrows; ++i)
     {
         stx_t row = rows[i];
 
         if (!stx_len(row)) break;
         
-        unsigned int ncols; 
-        stx_t *columns = stx_split(row, stx_len(row), ",", &ncols);
+        size_t ncols; 
+        stx_t *columns = stx_split(row, ",", &ncols);
         
         int votes = atoi(columns[0]);
         stx_t user = columns[1];
         stx_t text = columns[2];
 
-        int appended = stx_catf (page, POST_FMT, user, votes, text); 
+        int appended = stx_append_format(page, POST_FMT, user, votes, text); 
         
 
        	// post too long, so flush page, reset and re-add post 
         if (appended <= 0) {
         	send(page);
         	stx_reset(page);
-        	stx_catf (page, POST_FMT, user, votes, text);
+        	stx_append_format (page, POST_FMT, user, votes, text);
         }
         
         stx_list_free(columns);

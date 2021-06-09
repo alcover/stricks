@@ -1,5 +1,5 @@
 /*
-Stricks v0.3.2
+Stricks v0.4.0
 Copyright (C) 2021 - Francois Alcover <francois[@]alcover.fr>
 NO WARRANTY EXPRESSED OR IMPLIED.
 */
@@ -16,19 +16,21 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #include <assert.h>
 #include <errno.h>
 
+#define STX_WARNINGS 1
 #include "stx.h"
+// #define ENABLE_LOG
 #include "log.h"
 #include "util.c"
 
 typedef struct {   
     uint8_t cap;
     uint8_t len; 
-} Head1;
+} Prop1;
 
 typedef struct {   
     uint32_t cap;  
     uint32_t len; 
-} Head4;
+} Prop4;
 
 typedef struct {   
     uint8_t canary; 
@@ -36,71 +38,102 @@ typedef struct {
     char data[]; 
 } Attr;
 
-// clang rejects comptime math ?
+static_assert (sizeof(Attr) == 2, "bad Attr");
+
+// comptime math : gcc ok, clang error ?
 typedef enum {
-    TYPE1 = 1, // (int)log2(sizeof(Head1)), 
-    TYPE4 = 3  // (int)log2(sizeof(Head4))
+    TYPE1 = 1, // (int)log2(sizeof(Prop1)), 
+    TYPE4 = 3  // (int)log2(sizeof(Prop4))
 } Type;
 
-typedef struct {uint32_t off; uint32_t len;} Part; // for split()
-
-static_assert ((1<<TYPE1) == sizeof(Head1), "bad TYPE1");
-static_assert ((1<<TYPE4) == sizeof(Head4), "bad TYPE4");
+static_assert (sizeof(Prop1)==(1<<TYPE1), "bad TYPE1");
+static_assert (sizeof(Prop4)==(1<<TYPE4), "bad TYPE4");
 
 #define MAGIC 0xaa
 #define TYPE_BITS 2
 #define TYPE_MASK ((1<<TYPE_BITS)-1)
 #define SMALL_CAP 255
+#define DATAOFF offsetof(Attr,data)
 
-#define HEAD(s) ((char*)(s) - sizeof(Attr) - TYPESZ(TYPE(s)))
-#define ATTR(s) ((Attr*)((char*)(s) - sizeof(Attr)))
-#define FLAGS(s)  ATTR(s)->flags
-#define CANARY(s) ATTR(s)->canary
+#define FLAGS(s) (((uint8_t*)(s))[-1]) // faster than safer attr->flags ?
 #define TYPE(s) (FLAGS(s) & TYPE_MASK)
-#define TYPESZ(type) (1<<type)
-#define MEMSZ(type,cap) (TYPESZ(type) + sizeof(Attr) + cap + 1) //MIN_CAP ??
-#define CHECK(s) ((s) && CANARY(s) == MAGIC)
-#define DATA(head,type) ((char*)head + TYPESZ(type) + sizeof(Attr))
+#define PROPSZ(type) (1<<type)
+#define HEAD(s) ((char*)(s) - DATAOFF - PROPSZ(TYPE(s)))
+#define HEADT(s,type) ((char*)(s) - DATAOFF - PROPSZ(type))
 
-#define HSETCAP(head, type, val) HSETPROP(head, type, cap, val)
-#define HSETLEN(head, type, val) HSETPROP(head, type, len, val)
-#define HSETPROP(head, type, prop, val) \
-switch(type) { \
-    case TYPE1: ((Head1*)head)->prop = val; break; \
-    case TYPE4: ((Head4*)head)->prop = val; break; \
-} 
+#define ATTR(s) ((Attr*)((char*)(s) - DATAOFF))
+#define HATTR(head,type) ((Attr*)((char*)(head) + PROPSZ(type)))
 
+#define CANARY(s) ATTR(s)->canary
+
+#define MEMSZ(type,cap) (PROPSZ(type) + DATAOFF + cap + 1)
+#define CHECK(s) ((s) && (CANARY(s) == MAGIC))
+#define DATA(head,type) ((char*)head + PROPSZ(type) + DATAOFF)
+
+#define HGETPROP(head, type, prop) \
+((type == TYPE4) ? ((Prop4*)head)->prop : ((Prop1*)head)->prop)
 #define HGETCAP(head, type) HGETPROP(head, type, cap)
 #define HGETLEN(head, type) HGETPROP(head, type, len)
-#define HGETPROP(head, type, prop) \
-((type == TYPE4) ? ((Head4*)head)->prop : ((Head1*)head)->prop)
 
-#define HGETSPC(head, type) \
-((type == TYPE4) ? (((Head4*)head)->cap - ((Head4*)head)->len) \
-                 : (((Head1*)head)->cap - ((Head1*)head)->len))
+#define HSETPROP(head, type, prop, val) \
+switch(type) { \
+    case TYPE1: ((Prop1*)head)->prop = val; break; \
+    case TYPE4: ((Prop4*)head)->prop = val; break; \
+    default: ERR("Bad head type"); exit(1); \
+} 
+#define HSETCAP(head, type, val) HSETPROP(head, type, cap, val)
+#define HSETLEN(head, type, val) HSETPROP(head, type, len, val)
+#define HSETPROPS(head, type, cap, len) \
+switch(type) { \
+    case TYPE1: *((Prop1*)head) = (Prop1){cap,len}; break; \
+    case TYPE4: *((Prop4*)head) = (Prop4){cap,len}; break; \
+    default: ERR("Bad head type"); exit(1); \
+} 
 
-#define SETPROP(s,prop,val) HSETPROP(HEAD(s), TYPE(s), prop, val)
-#define GETPROP(s,prop) HGETPROP(HEAD(s), TYPE(s), prop)
-#define GETSPC(s) HGETSPC(HEAD(s), TYPE(s))
+static inline size_t 
+HGETSPC (const void* head, Type type){
+    switch(type) { 
+        case TYPE4: return ((Prop4*)head)->cap - ((Prop4*)head)->len;
+        case TYPE1: return ((Prop1*)head)->cap - ((Prop1*)head)->len;
+    }  
+}
 
-//==== PRIVATE ================================================================
 
-// enforce STX_MIN_CAP ?
-static bool 
+#define LEN_TYPE(len) ((len <= SMALL_CAP) ? TYPE1 : TYPE4)
+
+//==== PRIVATE =================================================================
+
+stx_t list_pool[STX_POOL_MAX] = {NULL};
+
+static inline size_t
+getlen (stx_t s)
+{
+    const Type type = TYPE(s);
+    void* head = HEADT(s, type);
+    return HGETLEN(head, type);
+}
+
+static inline void
+setlen (stx_t s, size_t len)
+{
+    const Type type = TYPE(s);
+    void* head = HEADT(s, type);
+    HSETLEN(head, type, len);
+}
+
+static inline bool 
 resize (stx_t *ps, size_t newcap)
 {    
     stx_t s = *ps;
 
-    if (!CHECK(s)||!newcap) return false;
-
-    const void* head = HEAD(s);
     const Type type = TYPE(s);
+    const void* head = HEADT(s, type);
     const size_t cap = HGETCAP(head, type);
     const size_t len = HGETLEN(head, type);
 
     if (newcap == cap) return true;
     
-    const Type newtype = (newcap > SMALL_CAP) ? TYPE4 : TYPE1;
+    const Type newtype = LEN_TYPE(newcap);
     const bool sametype = (newtype == type);
     const size_t newsize = MEMSZ(newtype, newcap);
    
@@ -116,11 +149,9 @@ resize (stx_t *ps, size_t newcap)
     
     if (!sametype) {
         memcpy((char*)newdata, s, len+1); //?
-        // reput len
+
         HSETLEN(newhead, newtype, len);
-        // reput canary
         CANARY(newdata) = MAGIC;
-        // update flags
         FLAGS(newdata) = (FLAGS(newdata) & ~TYPE_MASK) | newtype;
 
         free((void*)head);
@@ -141,18 +172,21 @@ resize (stx_t *ps, size_t newcap)
 }
 
 
+// change: no strnlen
 static int 
-append (void* dst, const char* src, size_t n, bool alloc) 
+append (void* dst, const char* src, size_t srclen, bool alloc) 
 {
     stx_t s = alloc ? *((stx_t**)(dst)) : dst;
     
-    if (!CHECK(s)||!src) return 0;
+    if (!CHECK(s)) return 0;
 
-    const size_t cap = GETPROP(s, cap);
-    const size_t len = GETPROP(s, len);
-    const size_t inc = n ? strnlen(src,n) : strlen(src);
-    const size_t totlen = len + inc;
+    const Type type = TYPE(s);
+    void* head = HEADT(s, type);
+    const size_t cap = HGETCAP(head, type);
+    const size_t len = HGETLEN(head, type);
+    const size_t totlen = len + srclen;
 
+    // s might change !
     if (totlen > cap) {  
         // Would truncate, return needed capacity
         if (!alloc) return -totlen;
@@ -165,19 +199,19 @@ append (void* dst, const char* src, size_t n, bool alloc)
     }
 
     char* end = (char*)s + len;
-    memcpy (end, src, inc);
-    end[inc] = 0;
-    SETPROP(s, len, totlen);
+    memcpy (end, src, srclen);
+    end[srclen] = 0;
+    setlen(s, totlen);
 
-    return inc;        
+    return srclen;        
 }
 
 
 static int 
 append_format (stx_t dst, const char* fmt, va_list args)
 {
-    const void* head = HEAD(dst);
     const Type type = TYPE(dst);
+    const void* head = HEADT(dst, type);
     const size_t len = HGETLEN(head, type);
     const size_t spc = HGETSPC(head, type);
 
@@ -196,12 +230,10 @@ append_format (stx_t dst, const char* fmt, va_list args)
     }
 
     // Truncation
-    if (fmlen > spc) {
-        
+    if (fmlen > (int)spc) {
         #if STX_WARNINGS > 0
             ERR ("append_format: truncation\n");
         #endif
-
         *end = 0; // undo
         return -(len + fmlen); 
     } 
@@ -214,10 +246,10 @@ append_format (stx_t dst, const char* fmt, va_list args)
 
 
 static stx_t
-dup (stx_t s)
+dup (stx_t src)
 {
-    const void* head = HEAD(s);
-    const Type type = TYPE(s);
+    const Type type = TYPE(src);
+    const void* head = HEADT(src, type);
     const size_t len = HGETLEN(head, type);
     const size_t sz = MEMSZ(type,len);
     void* new_head = malloc(sz);
@@ -232,73 +264,95 @@ dup (stx_t s)
     return ret;
 }
 
-//==== PUBLIC ==================================================================
 
-stx_t 
-stx_new (size_t mincap)
+
+static inline stx_t 
+new (size_t cap)
 {
-    const size_t cap = max(mincap, STX_MIN_CAP);
-    const Type type = (cap > SMALL_CAP) ? TYPE4 : TYPE1;
-
+    const Type type = LEN_TYPE(cap);
     void* head = STX_MALLOC(MEMSZ(type, cap));
     if (!head) return NULL;
 
-    HSETCAP(head, type, cap);
-    HSETLEN(head, type, 0);
+    HSETPROPS(head, type, cap, 0);
 
-    Attr* attr = (Attr*)((char*)(head) + TYPESZ(type));
+    Attr* attr = HATTR(head,type);
+    char* data = attr->data;
+
     attr->canary = MAGIC;
     attr->flags = type;
-    attr->data[0] = 0; 
-    attr->data[cap] = 0; 
+    data[0] = 0; 
+    data[cap] = 0; 
     
-    return (const stx_t)(attr->data);
+    return data;
+}
+
+static inline stx_t 
+from (const char* src, size_t len)
+{
+    const Type type = LEN_TYPE(len);
+    void* head = STX_MALLOC(MEMSZ(type, len));
+    if (!head) return NULL;
+
+    HSETPROPS(head, type, len, len);
+
+    Attr* attr = HATTR(head,type);
+    char* data = attr->data; //DATA(head,type);
+
+    attr->canary = MAGIC;
+    attr->flags = type;
+    memcpy (data, src, len); //optim cpy len+1 ?
+    data[len] = 0; 
+
+    return data;
+}
+
+static inline stx_t 
+from_to (const char* src, size_t len, char* head)
+{
+    const Type type = LEN_TYPE(len);
+    Attr* attr = HATTR(head,type);
+    char* data = attr->data;
+
+    HSETPROPS(head, type, len, len);
+    attr->canary = MAGIC;
+    attr->flags = type;
+    memcpy (data, src, len); //optim cpy len+1 ?
+    data[len] = 0; 
+
+    return data;
+}
+//==== PUBLIC ==================================================================
+
+stx_t 
+stx_new (size_t cap)
+{
+    return new(cap);
 }
 
 stx_t
 stx_from (const char* src)
 {
-    if (!src) return stx_new(STX_MIN_CAP);
-
-    const size_t len = strlen(src);
-    stx_t ret = stx_new(len);
-    
-    memcpy ((char*)ret, src, len);
-    SETPROP (ret, len, len);
-
-    return ret;
+    return src ? from(src, strlen(src)) : new(0);
 }
 
-// todo optm strncpy_s ?
+// strncpy_s ?
 stx_t
 stx_from_len (const char* src, size_t len)
 {
-    stx_t dst = stx_new(len);
-    if (!src) return dst;
-    
-    const char* s = src;
-    char* d = (char*)dst;
-    size_t stock = len;
-
-    for (; *s && stock; --stock) 
-        *d++ = *s++;
-    
-    SETPROP (dst, len, len-stock);
-
-    return dst;
+    return src ? from(src, len) : new(0);
 }
 
 stx_t
-stx_dup (stx_t s)
+stx_dup (stx_t src)
 {
-    return CHECK(s) ? dup(s) : NULL;
+    return CHECK(src) ? dup(src) : NULL;
 }
 
 void 
 stx_reset (stx_t s)
 {
     if (!CHECK(s)) return;
-    SETPROP(s, len, 0);
+    setlen(s,0);
     *((char*)s) = 0;
 } 
 
@@ -312,13 +366,10 @@ stx_free (stx_t s)
         return;
     }
 
-    void* head = HEAD(s);
-    
-    switch(TYPE(s)) {
-        case TYPE4: bzero(head, sizeof(Head4) + sizeof(Attr)); break;
-        case TYPE1: bzero(head, sizeof(Head1) + sizeof(Attr)); break;
-    }
-
+    const Type type = TYPE(s);
+    void* head = HEADT(s, type);
+    // safe crossing structs ?
+    memset (head, 0, PROPSZ(type) + DATAOFF + 1);
     STX_FREE(head);
 }
 
@@ -327,45 +378,33 @@ size_t
 stx_cap (stx_t s) 
 {
     if (!CHECK(s)) return 0;  
-    return GETPROP(s, cap);  
+    return HGETCAP(HEAD(s), TYPE(s));
 }
 
 size_t 
 stx_len (stx_t s) 
 {
     if (!CHECK(s)) return 0;
-    return GETPROP(s, len);
+    return getlen(s);
 }
 
 size_t 
 stx_spc (stx_t s)
 {
     if (!CHECK(s)) return 0;
-    return GETSPC(s);
-}
-
-int 
-stx_append (stx_t dst, const char* src) 
-{
-    return append((void*)dst, src, 0, false);       
-}
-
-int 
-stx_append_count (stx_t dst, const char* src, size_t n) 
-{
-    return append((void*)dst, src, n, false);       
+    return HGETSPC(HEAD(s), TYPE(s));
 }
 
 size_t 
-stx_append_alloc (stx_t* dst, const char* src)
+stx_append (stx_t* dst, const char* src, size_t len)
 {
-    return append((void*)dst, src, 0, true);        
+    return append((void*)dst, src, len, true);        
 }
 
-size_t 
-stx_append_count_alloc (stx_t* dst, const char* src, size_t n)
+int 
+stx_append_strict (stx_t dst, const char* src, size_t len) 
 {
-    return append((void*)dst, src, n, true);        
+    return append((void*)dst, src, len, false);       
 }
 
 int 
@@ -384,6 +423,7 @@ stx_append_format (stx_t dst, const char* fmt, ...)
 bool
 stx_resize (stx_t *ps, size_t newcap)
 {
+    if (!ps||!CHECK(*ps)) return false;
     return resize(ps, newcap);
 }
 
@@ -393,8 +433,8 @@ stx_equal (stx_t a, stx_t b)
 {
     if (!CHECK(a)||!CHECK(b)) return false;
 
-    const size_t lena = GETPROP((a), len);
-    const size_t lenb = GETPROP((b), len);
+    const size_t lena = getlen(a);
+    const size_t lenb = getlen(b);
 
     return (lena == lenb) && !memcmp(a, b, lena);
 }
@@ -421,12 +461,12 @@ stx_show (stx_t s)
 
     switch(type){
         case TYPE4: {
-            Head4* h = (Head4*)head;
+            Prop4* h = (Prop4*)head;
             printf (FMT, ARGS);
             break;
         }
         case TYPE1: {
-            Head1* h = (Head1*)head;
+            Prop1* h = (Prop1*)head;
             printf (FMT, ARGS);
             break;
         }
@@ -449,7 +489,7 @@ stx_trim (stx_t s)
     const char* front = s;
     while (isspace(*front)) ++front;
 
-    const char* end = s + GETPROP(s,len);
+    const char* end = s + getlen(s);
     while (end > front && isspace(*(end-1))) --end;
     
     const size_t newlen = end-front;
@@ -459,81 +499,106 @@ stx_trim (stx_t s)
     }
     
     ((char*)s)[newlen] = 0;
-    SETPROP(s, len, newlen);
+    setlen(s,newlen);
 }
 
 
 void
-stx_update (stx_t s)
+stx_adjust (stx_t s)
 {
     if (!CHECK(s)) return;
-    SETPROP(s, len, strlen(s));
+    setlen(s,strlen(s));
 }
 
 
 stx_t*
-stx_split (const void* src, size_t srclen, const char* sep, 
-    unsigned int* outcnt)
+stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, size_t* outcnt)
 {
-    if (!src) {
-        *outcnt = 0;
-        return NULL;
-    }
-    
-    const size_t seplen = sep ? strlen(sep) : 0;
-    
-    // solid ?
-    const unsigned nparts = str_count(src,sep)+1;
-    Part parts[nparts];
+    size_t cnt = 0; 
+    stx_t* ret = NULL;
 
-    const char* s = src;
-    const char* beg = s;
-    unsigned cnt = 0;
-    // size_t blocksz = 0;
-    stx_t* list;
+    if (!src||!seplen) goto fin;
 
-    if (!seplen) goto last;
+    stx_t  list_local[STX_STACK_MAX]; 
+    stx_t *list_dyn = NULL;
+    stx_t *list_reloc = NULL;
+    stx_t *list = list_local;
+    size_t listmax = STX_STACK_MAX;
 
-    const char *end = strstr(s,sep);
+    const char *beg = src;
+    const char *end = strstr(src,sep);//todo strnstr
 
     while (end) {
-        const size_t len = end-beg;
-        // Type type = len <= SMALL_CAP ? TYPE1 : TYPE4;
-        // size_t partsz = MEMSZ(type,len);
-        // blocksz += partsz;
-        parts[cnt++] = (Part){beg-s, len};
+
+        if (cnt >= listmax-2) { // -1 : for last part
+            
+
+            if (list == list_local) {
+
+                list_reloc = list_pool;
+                listmax = STX_POOL_MAX;
+
+            } else if (list == list_pool) {
+
+                // LOG("dyn");
+                listmax *= 2;
+                list_dyn = STX_MALLOC (listmax * sizeof(stx_t)); 
+                if (!list_dyn) {cnt = 0; goto fin;}
+                list_reloc = list_dyn;
+            
+            } else { // list_dyn
+                listmax *= 2;
+                list = STX_REALLOC (list, listmax * sizeof(stx_t)); 
+                if (!list) {cnt = 0; goto fin;}
+            }
+        
+            if (list_reloc) {
+                // LOG("reloc");
+                memcpy (list_reloc, list, cnt * sizeof(stx_t));
+                list = list_reloc;
+                list_reloc = NULL;
+            }
+        }
+
+        list[cnt++] = from(beg, end-beg);
+
         end += seplen;
         beg = end;
         end = strstr(end,sep);
     };
+    
+    list[cnt++] = from(beg, (src+srclen)-beg);
 
-    last:
-    parts[cnt++] = (Part){beg-s, s+srclen-beg}; //bof
-
-    // char* block = STX_MALLOC(blocksz);
-    list = STX_MALLOC((cnt+1) * sizeof(*list)); // +1: sentinel
-
-    for (int i = 0; i < cnt; ++i)
-    {   
-        Part part = parts[i];
-        list[i] = stx_from_len (s + part.off, part.len);
+    if (list == list_dyn) {
+        ret = list;  
+    } else {
+        ret = STX_MALLOC((cnt+1) * sizeof(stx_t)); // +1: sentinel
+        if (!ret) {cnt = 0; goto fin;}
+        memcpy (ret, list, cnt * sizeof(stx_t));
     }
 
-    list[cnt] = NULL; // sentinel
+    ret[cnt] = NULL; // sentinel
+
+    fin:
     *outcnt = cnt;
-    
-    return list;
+    return ret;
 }
 
 
-// implies sentinel !
-void
-stx_list_free (const stx_t* list)
+stx_t*
+stx_split (const char* src, const char* sep, size_t* outcnt)
 {
-    const stx_t* l = list;
+    const size_t srclen = sep ? strlen(src) : 0;
+    const size_t seplen = sep ? strlen(sep) : 0;
+    return stx_split_len(src, srclen, sep, seplen, outcnt);
+}
+
+void
+stx_list_free (const stx_t *list)
+{
+    const stx_t *l = list;
     stx_t s;
 
-    while (s = *l++) stx_free(s);
-    
-    free((void*)list);
+    while ((s = *l++)) stx_free(s); //bug unit
+    free((void*)list); //not for pool !
 }

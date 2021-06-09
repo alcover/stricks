@@ -1,5 +1,5 @@
 /*
-Stricks v0.3.2
+Stricks v0.4.0
 Copyright (C) 2021 - Francois Alcover <francois[@]alcover.fr>
 NO WARRANTY EXPRESSED OR IMPLIED.
 */
@@ -31,7 +31,8 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #define STX_WARNINGS 0
 #endif
 
-#define STX_MIN_CAP 2
+#define STX_STACK_MAX 256
+#define STX_POOL_MAX 4*1024*1024
 
 typedef const char* stx_t;
 
@@ -46,27 +47,20 @@ stx_t	stx_dup (stx_t src);
 
 void	stx_free (stx_t s);
 void	stx_reset (stx_t s);
-void	stx_update (stx_t s);
+void	stx_adjust (stx_t s);
 void	stx_trim (stx_t s);
 void	stx_show (stx_t s); 
 bool	stx_resize (stx_t *pstx, size_t newcap);
 bool	stx_check (stx_t s);
 bool	stx_equal (stx_t a, stx_t b);
-stx_t* 	stx_split (const void* s, size_t len, const char* sep, 
-	unsigned int* outcnt);
+stx_t*	stx_split (const char* src, const char* sep, size_t* outcnt);
+stx_t*	stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, size_t* outcnt);
+
+stx_t*	stx_split_fast (const char* src, size_t srclen, const char* sep, size_t* outcnt);
 void	stx_list_free (const stx_t* list);
 
-int		stx_append (stx_t dst, const char* src);
-int		stx_append_count (stx_t dst, const char* src, size_t n);
+size_t	stx_append (stx_t* dst, const char* src, size_t len);
+int		stx_append_strict (stx_t dst, const char* src, size_t len);
 int		stx_append_format (stx_t dst, const char* fmt, ...);
-size_t	stx_append_alloc (stx_t* dst, const char* src);
-size_t	stx_append_count_alloc (stx_t* dst, const char* src, size_t n);
-
-// Shorthands
-#define stx_cat		stx_append
-#define stx_ncat	stx_append_count
-#define stx_catf	stx_append_format
-#define stx_cata	stx_append_alloc
-#define stx_ncata	stx_append_count_alloc
 
 #endif

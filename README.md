@@ -103,7 +103,7 @@ When the next post would truncate, the buffer is flushed.
 
 [stx_free](#stx_free)  
 [stx_reset](#stx_reset)  
-[stx_update](#stx_update)  
+[stx_adjust](#stx_adjust)  
 [stx_trim](#stx_trim)  
 [stx_show](#stx_show)  
 [stx_resize](#stx_resize)  
@@ -268,10 +268,10 @@ stx_show(s);
 ```
 
 
-### stx_update
+### stx_adjust
 Sets `len` straight in case data was modified from outside.
 ```C
-void stx_update (stx_t s)
+void stx_adjust (stx_t s)
 ```
 
 ### stx_trim

@@ -19,38 +19,30 @@
 #define s32 x4(s8)
 #define s256 x4(s32) x4(s32)
 
-int main() {
+// void split(const char* word, const char* sep, size_t n) 
+// { 
+//     const char* pat = str_cat(word,sep); //LOGVS(pat);
+//     const char* txt = str_repeat(pat,n); //LOGVS(txt);
+//     const size_t wordlen = strlen(word);
+//     size_t cnt = 0;
+//     stx_t* list = stx_split_len(txt, strlen(txt), sep, 1, &cnt);
+//     assert(cnt==n+1);
+    
+//     for (size_t i = 0; i < cnt-1; ++i) {
+//         stx_t s = list[i];
+//         // ASSERT_PROPS (s, wordlen, wordlen, word);
+//     }
+//     // ASSERT_STR(list[cnt-1], "");
 
-/********************************************************************/
+//     // free((char*)pat);
+//     // free((char*)txt);
+//     // stx_list_free(list);
+// }
 
-// stx_t s = stx_from("Stricks");
-// // stx_append_alloc (&s, " are treats!");        
-// stx_resize(&s, 300);
-
-// printf("%s\n", s);
-
-// stx_t s = stx_new(8);
-// ((char*)s)[0] = 'a';
-// stx_show(s);
-
-stx_t s  = stx_from("a,b");
-unsigned int len;
-stx_t *list = stx_split(s, strlen(s),",", &len);
-printf("%s|%s\n", list[0], list[1]);
-stx_free(s);
-stx_list_free(list);
-
-// s = stx_from(s256, 0);
-// stx_show(s);
-
-// const char* text = rand_str(1<<8);
-// unsigned int l=0;
-// stx_t* list = stx_split(text, "a", &l);
-
-// LOG(text); puts("\n");
-// for (int i = 0; i < l; ++i)
-// 	printf("%s\n", list[i]);
+int main() 
+{
+	// split("foo","|",STX_POOL_MAX*2);
 
 
-/********************************************************************/
-return 0; }
+	return 0; 
+}

@@ -1,8 +1,8 @@
 CC = gcc
 STD = c11
-OPTIM = -O0
-WARN = -Wno-pedantic # -Wall -Wno-unused-function -Wno-unused-variable
-CP = $(CC) -std=$(STD) $(OPTIM) $(WARN) -g
+OPTIM = -O2
+WARN =  -Wextra -Wno-pedantic -Wno-unused-function -Wno-unused-variable
+CP = $(CC) -std=$(STD) $(WARN) $(OPTIM) -g #-pg
 COMP = $(CP) -c $< -o $@
 LINK = $(CP) $^ -o $@
 
@@ -22,14 +22,17 @@ $(lib): src/stx.c src/stx.h src/util.c
 	@ $(COMP)
 # 	@ ./$(unit)
 
+$(sds): sds/sds.c sds/sds.h
+	@ echo $@
+	@ $(CC) -std=c99 -Wall $(OPTIM) -c $< -o $@
+
 $(unit): src/unit.c $(lib) src/util.c
 	@ echo $@
 	@ $(CP) $< $(lib) -o $@
-# 	@ ./$(unit)
 
 $(bench): src/bench.c $(lib) $(sds)
 	@ echo $@
-	@ $(LINK) -lm
+	@ $(CC) -std=$(STD) -O0 $(WARN) $^ -o $@ -lm
 
 $(example): src/example.c $(lib)
 	@ echo $@
@@ -37,17 +40,13 @@ $(example): src/example.c $(lib)
 
 $(sandbox): src/sandbox.c $(lib)
 	@ echo $@
-	@ $(LINK)
-
-$(sds): sds/sds.c sds/sds.h
-	@ echo $@
-	@ $(CC) -std=c99 -Wall $(OPTIM) -c $< -o $@
+	@ $(LINK) 
 
 check:
 	@ ./$(unit)
 
 bench:
-	@ ./$(bench)
+	@ ./$(bench) 4
 
 clean:
 	@ rm -f bin/*
