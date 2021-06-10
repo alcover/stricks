@@ -36,31 +36,38 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 
 typedef const char* stx_t;
 
-size_t	stx_cap (stx_t s); // capacity accessor
-size_t	stx_len (stx_t s); // length accessor
-size_t	stx_spc (stx_t s); // remaining space
-
+// create
 stx_t	stx_new (size_t cap);
 stx_t	stx_from (const char* src);
-stx_t	stx_from_len (const char* src, size_t len);
+stx_t	stx_from_len (const void* src, size_t len);
 stx_t	stx_dup (stx_t src);
 
+// append
+size_t	stx_append (stx_t* dst, const char* src, size_t len);
+int		stx_append_strict (stx_t dst, const char* src, size_t len);
+int		stx_append_format (stx_t dst, const char* fmt, ...);
+
+// split
+stx_t*	stx_split (const char* src, const char* sep, size_t* outcnt);
+stx_t*	stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, size_t* outcnt);
+// stx_t*	stx_split_fast (const char* src, size_t srclen, const char* sep, size_t* outcnt);
+void	stx_list_free (const stx_t* list);
+
+// adjust/dispose
 void	stx_free (stx_t s);
 void	stx_reset (stx_t s);
 void	stx_adjust (stx_t s);
 void	stx_trim (stx_t s);
-void	stx_show (stx_t s); 
 bool	stx_resize (stx_t *pstx, size_t newcap);
-bool	stx_check (stx_t s);
+
+// assess
+size_t	stx_cap (stx_t s); // capacity accessor
+size_t	stx_len (stx_t s); // length accessor
+size_t	stx_spc (stx_t s); // remaining space
 bool	stx_equal (stx_t a, stx_t b);
-stx_t*	stx_split (const char* src, const char* sep, size_t* outcnt);
-stx_t*	stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, size_t* outcnt);
+bool	stx_check (stx_t s);
+void 	stx_dbg (stx_t s);
+void 	stx_dbg_deep (stx_t s);
 
-stx_t*	stx_split_fast (const char* src, size_t srclen, const char* sep, size_t* outcnt);
-void	stx_list_free (const stx_t* list);
-
-size_t	stx_append (stx_t* dst, const char* src, size_t len);
-int		stx_append_strict (stx_t dst, const char* src, size_t len);
-int		stx_append_format (stx_t dst, const char* fmt, ...);
 
 #endif

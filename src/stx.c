@@ -337,7 +337,7 @@ stx_from (const char* src)
 
 // strncpy_s ?
 stx_t
-stx_from_len (const char* src, size_t len)
+stx_from_len (const void* src, size_t len)
 {
     return src ? from(src, len) : new(0);
 }
@@ -446,38 +446,42 @@ stx_check (stx_t s)
 }
 
 void 
-stx_show (stx_t s)
+dbg (stx_t s, bool deep)
 {
-    if (!CHECK(s)) {
-        ERR("stx_show: invalid");
-        return;
-    }
+    if (!CHECK(s)) ERR("stx_dbg: invalid");
 
     const void* head = HEAD(s);
     const Type type = TYPE(s);
 
-    #define FMT "%zu %zu %x %x \"%s\"\n"
-    #define ARGS (size_t)(h->cap), (size_t)(h->len), CANARY(s), FLAGS(s), s
+    #define FMT "cap:%zu len:%zu data:\"%s\"\n"
+    #define ARGS (size_t)(h->cap), (size_t)(h->len), s
+    #define FMT_DEEP "cap:%zu len:%zu canary:%x flags:%x data:\"%s\"\n"
+    #define ARGS_DEEP (size_t)(h->cap), (size_t)(h->len), CANARY(s), FLAGS(s), s
 
     switch(type){
         case TYPE4: {
             Prop4* h = (Prop4*)head;
-            printf (FMT, ARGS);
+            if (deep) printf(FMT_DEEP, ARGS_DEEP); else printf(FMT, ARGS);
             break;
         }
         case TYPE1: {
             Prop1* h = (Prop1*)head;
-            printf (FMT, ARGS);
+            if (deep) printf(FMT_DEEP, ARGS_DEEP); else printf(FMT, ARGS);
             break;
         }
-        default: ERR("stx_show: unknown type\n");
+        default: ERR("stx_dbg: unknown type\n");
     }
 
     #undef FMT
     #undef ARGS
+    #undef FMT_DEEP
+    #undef ARGS_DEEP
 
     fflush(stdout);
 }
+
+void stx_dbg (stx_t s) {dbg(s,false);}
+void stx_dbg_deep (stx_t s) {dbg(s,true);}
 
 
 // todo new fit type ?

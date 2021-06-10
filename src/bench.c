@@ -70,7 +70,8 @@ void new_free()
 	RUNBEG("new+free")
 	FORV (n, 10, 100, 1000)
 		int iter = 10000/n;
-		LOG("%d parts (x%d) :", n, iter);
+		// LOG("%d parts (x%d) :", n, iter);
+		LOG("%d parts :", n);
 		bench("SDS", 		SDS_from, (foo,foolen,n), iter);
 		bench("Stricks", 	STX_from, (foo,foolen,n), iter);
 	FORVEND
@@ -101,7 +102,8 @@ void append()
 	RUNBEG("append")
 	FORV (n, 10, 100, 1000)
 		int iter = 10000/n;
-		LOG("%d parts (x%d) :", n, iter);
+		// LOG("%d parts (x%d) :", n, iter);
+		LOG("%d parts :", n);
 		bench("SDS", 	 SDS_append_dyn, (n), iter);
 		bench("Stricks", STX_append_dyn, (n), iter);
 	FORVEND
@@ -133,7 +135,8 @@ void split()
 	    const char* src = str_repeat(PAT,n);
 	    const size_t srclen = strlen(src);
 	    const size_t seplen = strlen(SEP);
-		LOG("%d parts (x%d) :", n, iter);
+		// LOG("%d parts (x%d) :", n, iter);
+		LOG("%d parts :", n);
 
 		bench ("SDS", 		SDS_split, (src,srclen,SEP, seplen), iter);  
 		bench ("Stricks", 	STX_split, (src,srclen,SEP, seplen), iter);  
@@ -146,11 +149,6 @@ void split()
 //==============================================================================
 int main (int argc, char **argv) 
 {
-	// int N;
-	// if (argc > 1) N = atoi(argv[1]); else N = 0;
-	// N = 1<<(N*4);
-	// // LOGVI(N);
-
 	new_free();
 	append();
 	split();

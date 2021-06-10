@@ -1,49 +1,37 @@
 ![logo](assets/logo.png)
 
 # Stricks
-Managed C strings library.  
+Augmented C strings  
  
 ![CI](https://github.com/alcover/stricks/actions/workflows/ci.yml/badge.svg)  
+
 :orange_book: [API](#API)
 
-## Why ?
-
-Handling C strings is hard.  
-Keeping track of length, null-byte, reallocation, etc...  
-Speed is also a concern with excessive calls to `strlen()`.  
-
+C strings are hard. Speed and safety means careful accounting  
+and passing around of lengths, storage sizes and reallocations.    
+*Stricks* take care of all that.
 
 # Principle
 
-A prefix header manages the string's state and bounds.  
-The user-facing type `stx_t` points directly to the `data` member.  
+The user-facing type `stx_t` (or *strick*) is just a normal `char*`.  
+All the accounting, invisible to the user, is done in a prefix header :    
 
 ![schema](assets/schema.png)
 
-The `stx_t` type (or *strick*) is just a normal `char*` string.  
-
-```C
-typedef const char* stx_t;
-```
-
-Header and string occupy a **single block** of memory (an "*SBlock*"),  
+Header and string occupy a **continuous** block of memory,  
 avoiding the indirection you find in `{len,*str}` schemes.    
 
-This technique is used notably by antirez/[SDS](https://github.com/antirez/sds),  
+This technique is used notably by [SDS](https://github.com/antirez/sds), 
 now part of [Redis](https://github.com/redis/redis).
 
-The *SBlock* is invisible to the user, who only uses `stx_t`.    
-Being really a `char*`, *stricks* can be passed to any (non-modifying) `<string.h>` functions.  
-
-The above illustration is simplified. In reality, Stricks uses two header types to optimize space, and houses the *canary* and *flags* in a separate *struct*. (See *src/stx.c*)
-
+Being really a `char*`, a *strick* can be passed to `<string.h>` functions.  
 
 
 # Security
 
 Stricks aims at limiting memory faults through the API :  
 
-* typedef `const char*` forces the user to cast when she wants to write.
+* typedef `const char*` forces the user to cast before out-of-API writing.
 * all methods check for a valid *Header*.  
 * if invalid, no action is taken and a *falsy* value is returned.  
 
@@ -57,14 +45,12 @@ Stricks aims at limiting memory faults through the API :
 
 
 ```C
-// app.c
 #include <stdio.h>
 #include "stx.h"
 
 int main() {
-
     stx_t s = stx_from("Stricks");
-    stx_append_strict(&s, " are treats!");        
+    stx_append(&s, " are treats!");        
     printf(s);
 
     return 0;
@@ -84,14 +70,16 @@ When the next post would truncate, the buffer is flushed.
 `make && ./bin/example`
 
 
-## Build & unit-test
+### Build & unit-test
 
 `make && make check`
 
 ## Speed
 
-Stricks is quite fast. Seemingly faster than SDS.  
-(At least for the standalone SDS, not part of Redis).
+Stricks is seemingly faster than standalone [SDS](https://github.com/antirez/sds).  
+(The Redis version, not benched here, uses custom allocators).
+
+`make && make bench`
 
 ```
 new+free
@@ -125,8 +113,6 @@ split
   Stricks  191145.00 ticks
 
 ```
-To run the benchmark :  
-`make && make bench`
 
 
 # API
@@ -138,23 +124,13 @@ To run the benchmark :
 [stx_dup](#stx_dup)  
 
 ### append
-[stx_append_strict](#stx_append_strict)
-[stx_append_count](#stx_append_count)
-[stx_append_format](#stx_append_format)
-[stx_append](#stx_append)
-[stx_append_count_alloc](#stx_append_count_alloc)
+[stx_append](#stx_append)  
+[stx_append_strict](#stx_append_strict)  
+[stx_append_format](#stx_append_format)  
 
 ### split
 [stx_split](#stx_split)  
 [stx_list_free](#stx_list_free)  
-
-### assess
-[stx_cap](#stx_cap)  
-[stx_len](#stx_len)  
-[stx_spc](#stx_spc)  
-[stx_check](#stx_check)  
-[stx_equal](#stx_equal)  
-[stx_show](#stx_show)  
 
 ### adjust/dispose
 [stx_free](#stx_free)  
@@ -163,10 +139,17 @@ To run the benchmark :
 [stx_trim](#stx_trim)  
 [stx_adjust](#stx_adjust)  
 
+### assess
+[stx_cap](#stx_cap)  
+[stx_len](#stx_len)  
+[stx_spc](#stx_spc)  
+[stx_check](#stx_check)  
+[stx_equal](#stx_equal)  
+[stx_dbg](#stx_dbg)  
 
 
 
-Custom allocator and destructor can be defined with  
+Custom allocators can be defined with  
 ```
 #define STX_MALLOC  my_allocator
 #define STX_REALLOC my_realloc
@@ -174,37 +157,47 @@ Custom allocator and destructor can be defined with
 ```
 
 ### stx_new
-Allocates and inits a new *strick* of capacity `cap`.  
+Create a new *strick* of capacity `cap`.  
 ```C
 stx_t stx_new (size_t cap)
 ```
 
+```C
+stx_t s = stx_new(10);
+stx_dbg(s); 
+//cap:10 len:0 data:""
+```
+
+
 ### stx_from
-Creates a new *strick* by copying string `src`.  
+Create a new *strick* by copying string `src`.  
 ```C
 stx_t stx_from (const char* src)
 ```
-Capacity is adjusted to length.
 
 ```C
-stx_t s = stx_from("Stricks");
-stx_show(s); 
-// cap:7 len:7 data:'Stricks'
+stx_t s = stx_from("Bonjour");
+stx_dbg(s); 
+// cap:7 len:7 data:'Bonjour'
 
 ```
 
 
 ### stx_from_len
 
-Creates a new *strick* with at most `len` bytes from `src`.  
+Create a new *strick* by copying `len` bytes from `src`.  
+
+BEWARE : this function is **binary** and will copy exactly `len` bytes,  
+without care for NUL bytes.  
+To ensure a string-wise stx.`len` property, use `stx_adjust` on the result.
 
 ```C
-stx_t stx_from_len (const char* src, size_t len)
+stx_t stx_from_len (const void* src, size_t len)
 ```
 
 ```C
 stx_t s = stx_from_len("Hello!", 4);
-stx_show(s); 
+stx_dbg(s); 
 // cap:4 len:4 data:'Hell'
 ```
 
@@ -212,12 +205,12 @@ If `len > strlen(src)`, the resulting capacity is `len`.
 
 ```C
 stx_t s = stx_from_len("Hello!", 10);
-stx_show(s); 
+stx_dbg(s); 
 // cap:10 len:6 data:'Hello!'
 ```
 
 ### stx_dup
-Creates a duplicate strick of `src`.  
+Create a duplicate strick of `src`.  
 ```C
 stx_t stx_dup (stx_t src)
 ```
@@ -227,7 +220,7 @@ Capacity gets trimmed down to length.
 stx_t s = stx_new(16);
 stx_cat(s, "foo");
 stx_t dup = stx_dup(s);
-stx_show(dup); 
+stx_dbg(dup); 
 // cap:3 len:3 data:'foo'
 
 ```
@@ -261,7 +254,7 @@ void stx_reset (stx_t s)
 stx_t s = stx_new(16);
 stx_cat(s, "foo");
 stx_reset(s);
-stx_show(s); 
+stx_dbg(s); 
 // cap:16 len:0 data:''
 ```
 
@@ -309,7 +302,7 @@ stx_t s = stx_new(3);
 int rc = stx_cat(s, "foobar"); // -> -6
 if (rc<0) stx_resize(&s, -rc);
 stx_cat(s, "foobar");
-stx_show(s); 
+stx_dbg(s); 
 // cap:6 len:6 data:'foobar'
 ```
 
@@ -343,7 +336,7 @@ unsigned cnt = 0;
 stx_t* list = stx_split(s, ", ", &cnt);
 
 for (int i = 0; i < cnt; ++i) {
-    stx_show(list[i]);
+    stx_dbg(list[i]);
 }
 
 // cap:3 len:3 data:'foo'
@@ -354,7 +347,7 @@ Or comfortably using the list sentinel
 
 ```C
 while (part = *list++) {
-    stx_show(part);
+    stx_dbg(part);
 }
 ```
 
@@ -381,13 +374,13 @@ bool stx_equal (stx_t a, stx_t b)
 * Faster than `memcmp` since stored lengths are compared first.
 
 
-### stx_show    
+### stx_dbg    
 Utility printing the state of `s`.
 ```C
-void stx_show (stx_t s)
+void stx_dbg (stx_t s)
 ```
 ```C
-stx_show(foo);
+stx_dbg(foo);
 // cap:8 len:5 data:'hello'
 ```
 
@@ -419,7 +412,7 @@ Return code :
 stx_t s = stx_new(3);  
 stx_append(s, "abc"); 
 stx_append(s, "def"); //-> 3 
-stx_show(s); // "cap:12 len:6 data:'abcdef'"
+stx_dbg(s); // "cap:12 len:6 data:'abcdef'"
 ```
 
 
@@ -466,6 +459,6 @@ Return code :
 ```C
 stx_t foo = stx_new(32);
 stx_catf (foo, "%s has %d apples", "Mary", 10);
-stx_show(foo);
+stx_dbg(foo);
 // cap:32 len:18 data:'Mary has 10 apples'
 ```
