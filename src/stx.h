@@ -43,8 +43,8 @@ stx_t	stx_from_len (const void* src, size_t len);
 stx_t	stx_dup (stx_t src);
 
 // append
-size_t	stx_append (stx_t* dst, const char* src, size_t len);
-int		stx_append_strict (stx_t dst, const char* src, size_t len);
+size_t	stx_append (stx_t* dst, const void* src, size_t len);
+int		stx_append_strict (stx_t dst, const void* src, size_t len);
 int		stx_append_format (stx_t dst, const char* fmt, ...);
 
 // split
@@ -67,7 +67,7 @@ size_t	stx_spc (stx_t s); // remaining space
 bool	stx_equal (stx_t a, stx_t b);
 bool	stx_check (stx_t s);
 void 	stx_dbg (stx_t s);
-void 	stx_dbg_deep (stx_t s);
+void 	stx_dbg_all (stx_t s);
 
 
 #endif
