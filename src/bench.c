@@ -23,8 +23,8 @@
 	LOG("%9s  %.2Lf", msg, avg);\
 }
 
-#define ARRLEN(a) (sizeof(a)/sizeof(a[0]))
 #define FOR(i,n) for(int i=0; i<(n); ++i)
+
 #define FORV(v,...) { \
 int _list[] = {__VA_ARGS__}; \
 int _listlen = sizeof(_list)/sizeof(_list[0]); \
@@ -38,6 +38,7 @@ for (int _i=0; _i<_listlen; ++_i) { \
 #define WORD "hello"
 #define SEP ", "
 #define PAT WORD SEP
+
 const char* foo = "foo";
 const size_t foolen = 3;
 // const char* sep = ",";
@@ -147,7 +148,7 @@ void split()
 }
 
 //==============================================================================
-int main (int argc, char **argv) 
+int main () 
 {
 	LOG("Time in clock ticks");
 

@@ -222,7 +222,7 @@ append_fmt (stx_t dst, const char* fmt, va_list args)
      
     // Error
     if (fmlen < 0) {
-        perror("stx_append_fmt");
+        perror("vsnprintf");
         *end = 0; // undo
         return 0;
     }
@@ -536,7 +536,6 @@ stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, s
     while (end) {
 
         if (cnt >= listmax-2) { // -1 : for last part
-            
 
             if (list == list_local) {
 

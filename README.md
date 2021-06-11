@@ -80,36 +80,45 @@ Stricks is seemingly faster than standalone [SDS](https://github.com/antirez/sds
 
 `make && make bench`
 
+On my old trusty Core i3 :
 ```
+Time in clock ticks
+
 new+free
 ---------------
-10 parts (x1000) :
-      SDS  0.83 ticks
-  Stricks  0.59 ticks
-1000 parts (x10) :
-      SDS  103.40 ticks
-  Stricks  74.60 ticks
+10 parts :
+      SDS  0.83
+  Stricks  0.62
+100 parts :
+      SDS  7.93
+  Stricks  6.15
+1000 parts :
+      SDS  104.70
+  Stricks  99.40
 
 append
 ---------------
-10 parts (x1000) :
-      SDS  0.40 ticks
-  Stricks  0.31 ticks
-1000 parts (x10) :
-      SDS  31.40 ticks
-  Stricks  16.80 ticks
+10 parts :
+      SDS  0.72
+  Stricks  0.42
+100 parts :
+      SDS  3.79
+  Stricks  2.66
+1000 parts :
+      SDS  32.80
+  Stricks  21.30
 
 split
 ---------------
-50 parts (x100001) :
-      SDS  3.44 ticks
-  Stricks  1.72 ticks
-5000 parts (x1001) :
-      SDS  310.93 ticks
-  Stricks  160.97 ticks
-5000000 parts (x2) :
-      SDS  423384.50 ticks
-  Stricks  191145.00 ticks
+50 parts :
+      SDS  3.34
+  Stricks  1.57
+5000 parts :
+      SDS  304.33
+  Stricks  154.67
+5000000 parts :
+      SDS  430519.00
+  Stricks  177649.00
 
 ```
 
