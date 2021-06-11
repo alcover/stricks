@@ -13,10 +13,9 @@
 
 int pagen = 1;
 
-
 void send(stx_t page) 
 { 
-	printf ("--- PAGE %d (%zu/%d bytes) ---\n\n%s\n", pagen++, stx_len(page), PAGE_SZ, page); 
+	printf ("--- PAGE %d (%zu/%d bytes) ---\n\n%s\n", pagen++, stx_len(page), PAGE_SZ, page);
 }
 
 int main()
@@ -51,14 +50,13 @@ int main()
         stx_t user = columns[1];
         stx_t text = columns[2];
 
-        int appended = stx_append_format(page, POST_FMT, user, votes, text); 
+        int appended = stx_append_fmt(page, POST_FMT, user, votes, text); 
         
-
        	// post too long, so flush page, reset and re-add post 
         if (appended <= 0) {
         	send(page);
         	stx_reset(page);
-        	stx_append_format (page, POST_FMT, user, votes, text);
+        	stx_append_fmt (page, POST_FMT, user, votes, text);
         }
         
         stx_list_free(columns);

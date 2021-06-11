@@ -142,7 +142,7 @@ void free_()
     assert (!stx_dup(s));
     assert (0 == stx_append (&s, foo, foolen));
     assert (0 == stx_append_strict (s, foo, foolen));
-    assert (0 == stx_append_format (s, "%s", foo));
+    assert (0 == stx_append_fmt (s, "%s", foo));
 }
 
 
@@ -340,7 +340,7 @@ void append_fmt()
     #define INIT(cap, fmt, src, exprc, explen, expdata)    \
     {                                                       \
         stx_t s = stx_new(cap);                            \
-        int rc = stx_append_format (s, fmt, src);                 \
+        int rc = stx_append_fmt (s, fmt, src);                 \
         assert (rc == (int)exprc);                               \
         ASSERT_PROPS (s, cap, explen, expdata); \
         stx_free(s);                                        \
@@ -349,7 +349,7 @@ void append_fmt()
     #define INIT2(cap, fmt, src1, src2, exprc, explen, expdata)    \
     {                                                       \
         stx_t s = stx_new(cap);                            \
-        int rc = stx_append_format (s, fmt, src1, src2);                 \
+        int rc = stx_append_fmt (s, fmt, src1, src2);                 \
         assert (rc == (int)exprc);                               \
         ASSERT_PROPS (s, cap, explen, expdata); \
         stx_free(s);                                        \
@@ -358,8 +358,8 @@ void append_fmt()
     #define MORE(cap, fmt, src1, src2, exprc, explen, expdata)    \
     {                                                       \
         stx_t s = stx_new(cap);                            \
-        stx_append_format (s, fmt, src1);                 \
-        int rc = stx_append_format (s, fmt, src2);                 \
+        stx_append_fmt (s, fmt, src1);                 \
+        int rc = stx_append_fmt (s, fmt, src2);                 \
         assert (rc == (int)exprc);                               \
         ASSERT_PROPS (s, cap, explen, expdata); \
         stx_free(s);                                        \
@@ -393,7 +393,7 @@ void story()
     stx_reset(b);
     stx_resize(&b,foobarlen);
     stx_append_strict(b,"", 0);
-    stx_append_format(b, "%s%s", foo, c); //b==foobar
+    stx_append_fmt(b, "%s%s", foo, c); //b==foobar
 
     assert_cmp(a,b);
     assert(stx_equal(a,b));

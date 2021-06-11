@@ -16,7 +16,7 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #include <assert.h>
 #include <errno.h>
 
-#define STX_WARNINGS 1
+#define STX_WARNINGS 0
 #include "stx.h"
 // #define ENABLE_LOG
 #include "log.h"
@@ -66,7 +66,7 @@ static_assert (sizeof(Prop4)==(1<<TYPE4), "bad TYPE4");
 
 #define CANARY(s) ATTR(s)->canary
 
-#define MEMSZ(type,cap) (PROPSZ(type) + DATAOFF + cap + 1)
+#define TOTSZ(type,cap) (PROPSZ(type) + DATAOFF + cap + 1)
 #define CHECK(s) ((s) && (CANARY(s) == MAGIC))
 #define DATA(head,type) ((char*)head + PROPSZ(type) + DATAOFF)
 
@@ -97,7 +97,6 @@ HGETSPC (const void* head, Type type){
         case TYPE1: return ((Prop1*)head)->cap - ((Prop1*)head)->len;
     }  
 }
-
 
 #define LEN_TYPE(len) ((len <= SMALL_CAP) ? TYPE1 : TYPE4)
 
@@ -135,7 +134,7 @@ resize (stx_t *ps, size_t newcap)
     
     const Type newtype = LEN_TYPE(newcap);
     const bool sametype = (newtype == type);
-    const size_t newsize = MEMSZ(newtype, newcap);
+    const size_t newsize = TOTSZ(newtype, newcap);
    
     void* newhead = sametype ? STX_REALLOC((void*)head, newsize)
                              : STX_MALLOC (newsize);
@@ -172,7 +171,6 @@ resize (stx_t *ps, size_t newcap)
 }
 
 
-// change: no strnlen
 static int 
 append (void* dst, const void* src, size_t srclen, bool alloc) 
 {
@@ -208,7 +206,7 @@ append (void* dst, const void* src, size_t srclen, bool alloc)
 
 
 static int 
-append_format (stx_t dst, const char* fmt, va_list args)
+append_fmt (stx_t dst, const char* fmt, va_list args)
 {
     const Type type = TYPE(dst);
     const void* head = HEADT(dst, type);
@@ -224,7 +222,7 @@ append_format (stx_t dst, const char* fmt, va_list args)
      
     // Error
     if (fmlen < 0) {
-        perror("stx_append_format");
+        perror("stx_append_fmt");
         *end = 0; // undo
         return 0;
     }
@@ -232,7 +230,7 @@ append_format (stx_t dst, const char* fmt, va_list args)
     // Truncation
     if (fmlen > (int)spc) {
         #if STX_WARNINGS > 0
-            ERR ("append_format: truncation\n");
+            ERR ("append_fmt: truncation\n");
         #endif
         *end = 0; // undo
         return -(len + fmlen); 
@@ -245,18 +243,19 @@ append_format (stx_t dst, const char* fmt, va_list args)
 }
 
 
+// copy only up to current length
 static stx_t
 dup (stx_t src)
 {
     const Type type = TYPE(src);
     const void* head = HEADT(src, type);
     const size_t len = HGETLEN(head, type);
-    const size_t sz = MEMSZ(type,len);
-    void* new_head = malloc(sz);
+    const size_t cpysz = TOTSZ(type,len);
+    void* new_head = malloc(cpysz);
 
     if (!new_head) return NULL;
 
-    memcpy(new_head, head, sz);
+    memcpy(new_head, head, cpysz);
     HSETCAP(new_head, type, len);
     stx_t ret = DATA(new_head, type);
     ((char*)ret)[len] = 0;
@@ -270,7 +269,7 @@ static inline stx_t
 new (size_t cap)
 {
     const Type type = LEN_TYPE(cap);
-    void* head = STX_MALLOC(MEMSZ(type, cap));
+    void* head = STX_MALLOC(TOTSZ(type, cap));
     if (!head) return NULL;
 
     HSETPROPS(head, type, cap, 0);
@@ -290,7 +289,7 @@ static inline stx_t
 from (const char* src, size_t len)
 {
     const Type type = LEN_TYPE(len);
-    void* head = STX_MALLOC(MEMSZ(type, len));
+    void* head = STX_MALLOC(TOTSZ(type, len));
     if (!head) return NULL;
 
     HSETPROPS(head, type, len, len);
@@ -444,13 +443,13 @@ stx_append_strict (stx_t dst, const void* src, size_t len)
 }
 
 int 
-stx_append_format (stx_t dst, const char* fmt, ...) 
+stx_append_fmt (stx_t dst, const char* fmt, ...) 
 {
     if (!CHECK(dst)) return 0;
 
     va_list args;
     va_start(args, fmt);
-    int rc = append_format (dst, fmt, args);            
+    int rc = append_fmt (dst, fmt, args);            
     va_end(args);
 
     return rc;

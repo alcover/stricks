@@ -31,9 +31,9 @@ Being really a `char*`, a *strick* can be passed to `<string.h>` functions.
 
 Stricks aims at limiting memory faults through the API :  
 
-* typedef `const char*` forces the user to cast before out-of-API writing.
-* all methods check for a valid *Header*.  
+* all methods check for a valid header.  
 * if invalid, no action is taken and a *falsy* value is returned.  
+* typedef `const char*` forces the user to cast before out-of-API writing.
 
 (See *[stx_free](#stx_free)*)
 
@@ -52,7 +52,6 @@ int main() {
     stx_t s = stx_from("Stricks");
     stx_append(&s, " are treats!");        
     printf(s);
-
     return 0;
 }
 ```
@@ -122,29 +121,29 @@ split
 
 # API
 
-### create
+#### create
 [stx_new](#stx_new)  
 [stx_from](#stx_from)  
 [stx_from_len](#stx_from_len)  
 [stx_dup](#stx_dup)  
 
-### append
+#### append
 [stx_append](#stx_append)  
 [stx_append_strict](#stx_append_strict)  
-[stx_append_format](#stx_append_format)  
+[stx_append_fmt](#stx_append_fmt)  
 
-### split
+#### split
 [stx_split](#stx_split)  
 [stx_list_free](#stx_list_free)  
 
-### adjust/dispose
+#### adjust/dispose
 [stx_free](#stx_free)  
 [stx_reset](#stx_reset)  
 [stx_resize](#stx_resize)  
 [stx_trim](#stx_trim)  
 [stx_adjust](#stx_adjust)  
 
-### assess
+#### assess
 [stx_cap](#stx_cap)  
 [stx_len](#stx_len)  
 [stx_spc](#stx_spc)  
@@ -196,8 +195,7 @@ Create a new *strick* by copying `len` bytes from `src`.
 stx_t stx_from_len (const void* src, size_t len)
 ```
 
-BEWARE : this function is **binary** and will copy exactly `len` bytes, without care for NUL bytes.  
-To ensure a string-wise stx.`len` property, use `stx_adjust` on the result.
+Beware that this function is **binary** : exactly `len` bytes will be copied, NUL bytes included. If you need the `stx.len` property to reflect its C-string length, use `stx_adjust` on the result.
 
 ```C
 stx_t s = stx_from_len("Hello!", 4);
@@ -228,8 +226,7 @@ stx_dbg(dup);
 ### stx_append
   
 ```C
-size_t
-stx_append (stx_t* dst, const char* src, size_t len)
+size_t stx_append (stx_t* dst, const void* src, size_t len)
 ```
 Appends `len` bytes from `src` to `*dst`.
 
@@ -251,10 +248,9 @@ stx_dbg(s); // "cap:12 len:6 data:'abcdef'"
 ### stx_append_strict
  
 ```C
-int
-stx_append_strict (stx_t dst, const char* src, size_t len)
+int stx_append_strict (stx_t dst, const char* src, size_t len)
 ```
-Appends `len` bytes from `src` to `dst`.  
+Appends `len` bytes from `src` to `dst`, in place.  
 * **No reallocation**.
 * Nothing done if input exceeds remaining space.
 
@@ -266,18 +262,17 @@ Return code :
 ```C
 stx_t s = stx_new(5);  
 stx_append_strict(s, "abc"); //-> 3
-printf("%s", s); // "abc"  
-stx_append_strict(s, "def"); //-> -6  (needs capacity = 6)
-printf("%s", s); // "abc"
+printf(s); // "abc"  
+stx_append_strict(s, "def"); //-> -6  (would need capacity = 6)
+printf(s); // "abc"
 ```
 
 
-### stx_append_format
-stx_catf     
+### stx_append_fmt   
 ```C
-int stx_catf (stx_t dst, const char* fmt, ...)
+int stx_append_fmt (stx_t dst, const char* fmt, ...)
 ```
-Appends a formatted c-string to `dst`, in place.  
+Appends a formatted string to `dst`, in place.  
 
 * **No reallocation**.
 * Nothing done if input exceeds remaining space.
@@ -289,7 +284,7 @@ Return code :
 
 ```C
 stx_t foo = stx_new(32);
-stx_catf (foo, "%s has %d apples", "Mary", 10);
+stx_append_fmt (foo, "%s has %d apples", "Mary", 10);
 stx_dbg(foo);
 // cap:32 len:18 data:'Mary has 10 apples'
 ```
@@ -392,15 +387,15 @@ Change capacity.
 ```C
 bool stx_resize (stx_t *pstx, size_t newcap)
 ```
-* If increased, the passed **reference** may get transparently updated.
+* If increased, the passed **reference** may get updated.
 * If lowered below length, data gets truncated.  
 
 Returns: `true/false` on success/failure.
 ```C
 stx_t s = stx_new(3);
-int rc = stx_cat(s, "foobar"); // -> -6
+int rc = stx_append_strict(s, "foobar"); // -> -6
 if (rc<0) stx_resize(&s, -rc);
-stx_cat(s, "foobar");
+stx_append_strict(s, "foobar");
 stx_dbg(s); 
 // cap:6 len:6 data:'foobar'
 ```
@@ -424,15 +419,15 @@ void stx_adjust (stx_t s)
 
 
 ### stx_cap  
-Current capacity accessor.
+Current capacity accessor.  
 `size_t stx_cap (stx_t s)`
 
 ### stx_len  
-Current length accessor.
+Current length accessor.  
 `size_t stx_len (stx_t s)`
 
 ### stx_spc  
-Remaining space.
+Remaining space.  
 `size_t stx_spc (stx_t s)`
 
 ### stx_equal    
@@ -451,7 +446,7 @@ bool stx_check (stx_t s)
 ```
 
 ### stx_dbg    
-Utility printing the state of `s`.
+Utility printing the state of `s`.  
 `void stx_dbg (stx_t s)`
 
 ```C

@@ -20,7 +20,7 @@
 	for (int i=0;i<iter;++i) fun arg;\
 	long double time = (long double)(clock()-start); \
 	long double avg = time/iter;\
-	LOG("%9s  %.2Lf ticks", msg, avg);\
+	LOG("%9s  %.2Lf", msg, avg);\
 }
 
 #define ARRLEN(a) (sizeof(a)/sizeof(a[0]))
@@ -149,6 +149,8 @@ void split()
 //==============================================================================
 int main (int argc, char **argv) 
 {
+	LOG("Time in clock ticks");
+
 	new_free();
 	append();
 	split();
