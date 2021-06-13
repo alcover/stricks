@@ -14,9 +14,10 @@
 #include "log.h"
 #include "util.c"
 
+
 int main() {
 
-stx_t s = stx_new(10);
+stx_t s = stx_from("foo");
 stx_dbg(s); 
 
 

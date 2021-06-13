@@ -2,7 +2,7 @@ CC = gcc
 STD = c11
 OPTIM = O2
 WARN =  -Wextra -Wno-pedantic -Wno-unused-function -Wno-unused-variable
-CP = $(CC) -std=$(STD) $(WARN) -$(OPTIM) -g #-pg
+CP = $(CC) -std=$(STD) $(WARN) -$(OPTIM) -g
 COMP = $(CP) -c $< -o $@
 LINK = $(CP) $^ -o $@
 
@@ -19,7 +19,7 @@ all: $(lib) $(unit) $(bench) $(example) $(sandbox)
 	
 $(lib): src/stx.c src/stx.h src/util.c
 	@ echo $@
-	@ $(COMP)
+	@ $(COMP) #-D ENABLE_LOG -D STX_WARNINGS
 # 	@ ./$(unit)
 
 $(sds): sds/sds.c sds/sds.h

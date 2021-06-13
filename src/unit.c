@@ -6,10 +6,7 @@
 #include <errno.h>
 #include <stdarg.h>
 
-#define STX_WARNINGS 1
 #include "stx.h"
-#define ENABLE_LOG 1
-#include "log.h"
 #include "util.c"
 //==============================================================================
 
@@ -20,7 +17,7 @@ ASSERT_INT (stx_cap(s), cap); \
 ASSERT_INT (stx_len(s), len); \
 ASSERT_STR ((s), data)
 
-
+// 
 #define ASSERT_INT(a, b) { \
     if ((a)!=(b)) { \
         fprintf(stderr, "%d: %s:%d != %s:%d\n", \
@@ -142,7 +139,7 @@ void free_()
     assert (!stx_dup(s));
     assert (0 == stx_append (&s, foo, foolen));
     assert (0 == stx_append_strict (s, foo, foolen));
-    assert (0 == stx_append_fmt (s, "%s", foo));
+    assert (0 == stx_append_fmt (&s, "%s", foo));
 }
 
 
@@ -337,10 +334,55 @@ void append_strict()
 
 void append_fmt()
 {
+    #define INIT(cap, fmt, src, exprc, expcap, explen, expdata)    \
+    {                                                       \
+        stx_t s = stx_new(cap);                            \
+        int rc = stx_append_fmt (&s, fmt, src);                 \
+        ASSERT_INT (rc,  (int)exprc);                               \
+        ASSERT_PROPS (s, expcap, explen, expdata); \
+        stx_free(s);                                        \
+    }
+    #define INIT2(cap, fmt, src1, src2, exprc, expcap, explen, expdata)    \
+    {                                                       \
+        stx_t s = stx_new(cap);                            \
+        int rc = stx_append_fmt (&s, fmt, src1, src2);                 \
+        assert (rc == (int)exprc);                               \
+        ASSERT_PROPS (s, expcap, explen, expdata); \
+        stx_free(s);                                        \
+    }
+
+    #define MORE(cap, fmt, src1, src2, exprc, explen, expdata)    \
+    {                                                       \
+        stx_t s = stx_new(cap);                            \
+        stx_append_fmt (&s, fmt, src1);                 \
+        int rc = stx_append_fmt (&s, fmt, src2);                 \
+        assert (rc == (int)exprc);                               \
+        ASSERT_PROPS (s, cap, explen, expdata); \
+        stx_free(s);                                        \
+    }
+
+    INIT (foolen,   "%s", "",   0,      foolen,     0,      "");
+    INIT (foolen,   "%s", foo,  foolen, foolen,     foolen, foo);
+    INIT (foolen+1, "%s", foo,  foolen, foolen+1,   foolen, foo);
+    INIT (foolen-1, "%s", foo,  foolen, foolen,     foolen, foo);
+
+    INIT2 (foobarlen,   "%s%s", foo, bar, foobarlen, foobarlen,   foobarlen, foobar);
+    INIT2 (foobarlen+1, "%s%s", foo, bar, foobarlen, foobarlen+1, foobarlen, foobar);
+    INIT2 (foobarlen-1, "%s%s", foo, bar, foobarlen, foobarlen, foobarlen, foobar);
+
+    MORE (foobarlen*2, "%s", foo, bar, barlen, foobarlen, foobar);
+    #undef INIT
+    #undef INIT2
+    #undef MORE
+}
+
+
+void append_fmt_strict()
+{
     #define INIT(cap, fmt, src, exprc, explen, expdata)    \
     {                                                       \
         stx_t s = stx_new(cap);                            \
-        int rc = stx_append_fmt (s, fmt, src);                 \
+        int rc = stx_append_fmt_strict (s, fmt, src);                 \
         assert (rc == (int)exprc);                               \
         ASSERT_PROPS (s, cap, explen, expdata); \
         stx_free(s);                                        \
@@ -349,7 +391,7 @@ void append_fmt()
     #define INIT2(cap, fmt, src1, src2, exprc, explen, expdata)    \
     {                                                       \
         stx_t s = stx_new(cap);                            \
-        int rc = stx_append_fmt (s, fmt, src1, src2);                 \
+        int rc = stx_append_fmt_strict (s, fmt, src1, src2);                 \
         assert (rc == (int)exprc);                               \
         ASSERT_PROPS (s, cap, explen, expdata); \
         stx_free(s);                                        \
@@ -358,8 +400,8 @@ void append_fmt()
     #define MORE(cap, fmt, src1, src2, exprc, explen, expdata)    \
     {                                                       \
         stx_t s = stx_new(cap);                            \
-        stx_append_fmt (s, fmt, src1);                 \
-        int rc = stx_append_fmt (s, fmt, src2);                 \
+        stx_append_fmt_strict (s, fmt, src1);                 \
+        int rc = stx_append_fmt_strict (s, fmt, src2);                 \
         assert (rc == (int)exprc);                               \
         ASSERT_PROPS (s, cap, explen, expdata); \
         stx_free(s);                                        \
@@ -375,7 +417,6 @@ void append_fmt()
 
     MORE (foobarlen*2, "%s", foo, bar, barlen, foobarlen, foobar);
 }
-
 //==============================================================================
 
 void story()
@@ -393,7 +434,7 @@ void story()
     stx_reset(b);
     stx_resize(&b,foobarlen);
     stx_append_strict(b,"", 0);
-    stx_append_fmt(b, "%s%s", foo, c); //b==foobar
+    stx_append_fmt(&b, "%s%s", foo, c); //b==foobar
 
     assert_cmp(a,b);
     assert(stx_equal(a,b));
@@ -479,7 +520,7 @@ void split() {split_unit(stx_split_len);}
 #define run(name) { \
     printf("%s ", #name); fflush(stdout); \
     name(); \
-    LOG("OK"); \
+    puts("OK"); \
 }
 
 int main()
@@ -490,6 +531,7 @@ int main()
     run(append);
     run(append_strict);
     run(append_fmt);
+    run(append_fmt_strict);
     run(dup);
     run(reset);
     run(adjust);

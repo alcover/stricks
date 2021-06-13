@@ -16,9 +16,7 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #include <assert.h>
 #include <errno.h>
 
-#define STX_WARNINGS 0
 #include "stx.h"
-// #define ENABLE_LOG
 #include "log.h"
 #include "util.c"
 
@@ -205,44 +203,6 @@ append (void* dst, const void* src, size_t srclen, bool alloc)
 }
 
 
-static int 
-append_fmt (stx_t dst, const char* fmt, va_list args)
-{
-    const Type type = TYPE(dst);
-    const void* head = HEADT(dst, type);
-    const size_t len = HGETLEN(head, type);
-    const size_t spc = HGETSPC(head, type);
-
-    if (!spc) return 0;
-
-    char* end = ((char*)dst) + len;
-
-    errno = 0;
-    const int fmlen = vsnprintf(end, spc+1, fmt, args);
-     
-    // Error
-    if (fmlen < 0) {
-        perror("vsnprintf");
-        *end = 0; // undo
-        return 0;
-    }
-
-    // Truncation
-    if (fmlen > (int)spc) {
-        #if STX_WARNINGS > 0
-            ERR ("append_fmt: truncation\n");
-        #endif
-        *end = 0; // undo
-        return -(len + fmlen); 
-    } 
-
-    // Update length
-    HSETLEN(head, type, len + fmlen);
-
-    return fmlen;
-}
-
-
 // copy only up to current length
 static stx_t
 dup (stx_t src)
@@ -395,9 +355,7 @@ void
 stx_free (stx_t s)
 {
     if (!CHECK(s)) {
-        #if STX_WARNINGS > 0
-            ERR ("stx_free: invalid header\n");
-        #endif
+        STX_WARN("stx_free: invalid header\n");
         return;
     }
 
@@ -443,16 +401,92 @@ stx_append_strict (stx_t dst, const void* src, size_t len)
 }
 
 int 
-stx_append_fmt (stx_t dst, const char* fmt, ...) 
+stx_append_fmt (stx_t* dst, const char* fmt, ...) 
 {
-    if (!CHECK(dst)) return 0;
+    if (!dst) return 0;
+    
+    stx_t s = *dst;
+    if (!CHECK(s)) return 0;
 
     va_list args;
     va_start(args, fmt);
-    int rc = append_fmt (dst, fmt, args);            
+    errno = 0;
+    const int inlen = vsnprintf(NULL, 0, fmt, args);
     va_end(args);
 
-    return rc;
+    if (inlen < 0) {
+        perror("vsnprintf");
+        return 0;
+    }
+
+    Type type = TYPE(s);
+    void* head = HEADT(s, type);
+    const size_t cap = HGETCAP(head, type);
+    const size_t len = HGETLEN(head, type);
+    const int totlen = len+inlen;
+     
+    // Truncation
+    if (totlen > (int)cap) {
+         
+        if (!resize(dst, totlen)) {
+            ERR("resize failed");
+            return 0;
+        }
+        s = *dst;
+        type = LEN_TYPE(totlen);
+        head = HEADT(s, type);
+    } 
+
+    // segfault if not va_start again (?)
+    va_start(args, fmt);
+    vsprintf(((char*)s)+len, fmt, args);
+    va_end(args);
+
+    // Update length
+    HSETLEN(head, type, totlen);
+
+    return inlen;           
+}
+
+
+int 
+stx_append_fmt_strict (stx_t dst, const char* fmt, ...) 
+{
+    const void* head = HEAD(dst);
+    const Type type = TYPE(dst);
+    const size_t len = HGETLEN(head, type);
+    const size_t spc = HGETSPC(head, type);
+
+    if (!spc) return 0;
+
+    char* end = ((char*)dst) + len;
+
+    va_list args;
+    va_start(args, fmt);
+    va_end(args);
+
+    errno = 0;
+    const int inlen = vsnprintf(end, spc+1, fmt, args);
+     
+    // Error
+    if (inlen < 0) {
+        perror("stx_append_format");
+        *end = 0; // undo
+        return 0;
+    }
+
+    // Truncation
+    if (inlen > (int)spc) {
+        
+        STX_WARN("stx_append_fmt_strict: truncation\n");
+        *end = 0; // undo
+        return -(len + inlen); 
+    } 
+
+    // Update length
+    HSETLEN(head, type, len + inlen);
+
+    return inlen;
 }
 
 bool
@@ -474,13 +508,7 @@ stx_equal (stx_t a, stx_t b)
     return (lena == lenb) && !memcmp(a, b, lena);
 }
 
-bool 
-stx_check (stx_t s)
-{
-    return CHECK(s);
-}
-
-
+bool stx_check (stx_t s) {return CHECK(s);}
 void stx_dbg (stx_t s) {dbg(s,false);}
 void stx_dbg_all (stx_t s) {dbg(s,true);}
 

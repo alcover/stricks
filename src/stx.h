@@ -27,8 +27,10 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #endif
 
 // Print warnings : double-free, truncation, etc..
-#ifndef STX_WARNINGS
-#define STX_WARNINGS 0
+#ifdef STX_WARNINGS
+	#define STX_WARN(args...) ERR(args)
+#else
+	#define STX_WARN(args...) ((void)0)
 #endif
 
 #define STX_STACK_MAX 256
@@ -45,7 +47,8 @@ stx_t	stx_dup (stx_t src);
 // append
 size_t	stx_append (stx_t* dst, const void* src, size_t len);
 int		stx_append_strict (stx_t dst, const void* src, size_t len);
-int		stx_append_fmt (stx_t dst, const char* fmt, ...);
+int		stx_append_fmt (stx_t* dst, const char* fmt, ...);
+int		stx_append_fmt_strict (stx_t dst, const char* fmt, ...);
 
 // split
 stx_t*	stx_split (const char* src, const char* sep, size_t* outcnt);
