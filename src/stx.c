@@ -169,7 +169,7 @@ resize (stx_t *ps, size_t newcap)
 }
 
 
-static int 
+static long long 
 append (void* dst, const void* src, size_t srclen, bool alloc) 
 {
     stx_t s = alloc ? *((stx_t**)(dst)) : dst;
@@ -199,7 +199,7 @@ append (void* dst, const void* src, size_t srclen, bool alloc)
     end[srclen] = 0;
     setlen(s, totlen);
 
-    return srclen;        
+    return totlen;        
 }
 
 
@@ -246,37 +246,37 @@ new (size_t cap)
 }
 
 static inline stx_t 
-from (const char* src, size_t len)
+from (const char* src, size_t srclen)
 {
-    const Type type = LEN_TYPE(len);
-    void* head = STX_MALLOC(TOTSZ(type, len));
+    const Type type = LEN_TYPE(srclen);
+    void* head = STX_MALLOC(TOTSZ(type, srclen));
     if (!head) return NULL;
 
-    HSETPROPS(head, type, len, len);
+    HSETPROPS(head, type, srclen, srclen);
 
     Attr* attr = HATTR(head,type);
     char* data = attr->data; //DATA(head,type);
 
     attr->canary = MAGIC;
     attr->flags = type;
-    memcpy (data, src, len); //optim cpy len+1 ?
-    data[len] = 0; 
+    memcpy (data, src, srclen); //optim cpy srclen+1 ?
+    data[srclen] = 0; 
 
     return data;
 }
 
 static inline stx_t 
-from_to (const char* src, size_t len, char* head)
+from_to (const char* src, size_t srclen, char* head)
 {
-    const Type type = LEN_TYPE(len);
+    const Type type = LEN_TYPE(srclen);
     Attr* attr = HATTR(head,type);
     char* data = attr->data;
 
-    HSETPROPS(head, type, len, len);
+    HSETPROPS(head, type, srclen, srclen);
     attr->canary = MAGIC;
     attr->flags = type;
-    memcpy (data, src, len); //optim cpy len+1 ?
-    data[len] = 0; 
+    memcpy (data, src, srclen); //optim cpy srclen+1 ?
+    data[srclen] = 0; 
 
     return data;
 }
@@ -332,9 +332,9 @@ stx_from (const char* src)
 
 // strncpy_s ?
 stx_t
-stx_from_len (const void* src, size_t len)
+stx_from_len (const void* src, size_t srclen)
 {
-    return src ? from(src, len) : new(0);
+    return src ? from(src, srclen) : new(0);
 }
 
 stx_t
@@ -389,18 +389,18 @@ stx_spc (stx_t s)
 }
 
 size_t 
-stx_append (stx_t* dst, const void* src, size_t len)
+stx_append (stx_t* dst, const void* src, size_t srclen)
 {
-    return append((void*)dst, src, len, true);        
+    return append((void*)dst, src, srclen, true);        
 }
 
-int 
-stx_append_strict (stx_t dst, const void* src, size_t len) 
+long long 
+stx_append_strict (stx_t dst, const void* src, size_t srclen) 
 {
-    return append((void*)dst, src, len, false);       
+    return append((void*)dst, src, srclen, false);       
 }
 
-int 
+size_t 
 stx_append_fmt (stx_t* dst, const char* fmt, ...) 
 {
     if (!dst) return 0;
@@ -423,10 +423,10 @@ stx_append_fmt (stx_t* dst, const char* fmt, ...)
     void* head = HEADT(s, type);
     const size_t cap = HGETCAP(head, type);
     const size_t len = HGETLEN(head, type);
-    const int totlen = len+inlen;
+    const size_t totlen = len+inlen;
      
     // Truncation
-    if (totlen > (int)cap) {
+    if (totlen > cap) {
          
         if (!resize(dst, totlen)) {
             ERR("resize failed");
@@ -445,11 +445,11 @@ stx_append_fmt (stx_t* dst, const char* fmt, ...)
     // Update length
     HSETLEN(head, type, totlen);
 
-    return inlen;           
+    return totlen;           
 }
 
 
-int 
+long long 
 stx_append_fmt_strict (stx_t dst, const char* fmt, ...) 
 {
     const void* head = HEAD(dst);
@@ -467,6 +467,7 @@ stx_append_fmt_strict (stx_t dst, const char* fmt, ...)
 
     errno = 0;
     const int inlen = vsnprintf(end, spc+1, fmt, args);
+    const size_t totlen = len+inlen;
      
     // Error
     if (inlen < 0) {
@@ -480,13 +481,13 @@ stx_append_fmt_strict (stx_t dst, const char* fmt, ...)
         
         STX_WARN("stx_append_fmt_strict: truncation\n");
         *end = 0; // undo
-        return -(len + inlen); 
+        return -totlen; 
     } 
 
     // Update length
-    HSETLEN(head, type, len + inlen);
+    HSETLEN(head, type, totlen);
 
-    return inlen;
+    return totlen;
 }
 
 bool

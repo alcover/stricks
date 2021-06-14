@@ -26,7 +26,7 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #define STX_FREE free
 #endif
 
-// Print warnings : double-free, truncation, etc..
+// double-free, truncation, ...
 #ifdef STX_WARNINGS
 	#define STX_WARN(args...) ERR(args)
 #else
@@ -41,14 +41,14 @@ typedef const char* stx_t;
 // create
 stx_t	stx_new (size_t cap);
 stx_t	stx_from (const char* src);
-stx_t	stx_from_len (const void* src, size_t len);
+stx_t	stx_from_len (const void* src, size_t srclen);
 stx_t	stx_dup (stx_t src);
 
 // append
-size_t	stx_append (stx_t* dst, const void* src, size_t len);
-int		stx_append_strict (stx_t dst, const void* src, size_t len);
-int		stx_append_fmt (stx_t* dst, const char* fmt, ...);
-int		stx_append_fmt_strict (stx_t dst, const char* fmt, ...);
+size_t		stx_append (stx_t* dst, const void* src, size_t srclen);
+size_t		stx_append_fmt (stx_t* dst, const char* fmt, ...);
+long long	stx_append_strict (stx_t dst, const void* src, size_t srclen);
+long long	stx_append_fmt_strict (stx_t dst, const char* fmt, ...);
 
 // split
 stx_t*	stx_split (const char* src, const char* sep, size_t* outcnt);

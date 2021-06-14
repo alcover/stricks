@@ -18,21 +18,13 @@ ASSERT_INT (stx_len(s), len); \
 ASSERT_STR ((s), data)
 
 // 
-#define ASSERT_INT(a, b) { \
-    if ((a)!=(b)) { \
-        fprintf(stderr, "%d: %s:%d != %s:%d\n", \
-            __LINE__, #a, (int)a, #b, (int)b); \
-        exit(1); \
-    } \
-}
+#define ASSERT_INT(a, b) { if ((a)!=(b)) { \
+fprintf(stderr, "%d: %s:%d != %s:%d\n", __LINE__, #a, (int)a, #b, (int)b); \
+exit(1); }}
 
-#define ASSERT_STR(a, b) { \
-    if (strcmp(a, b)) { \
-        fprintf(stderr, "%d: %s:'%s' != %s:'%s'\n", \
-            __LINE__, #a, a, #b, b); \
-        exit(1); \
-    } \
-}
+#define ASSERT_STR(a, b) { if (strcmp(a, b)) {\
+fprintf(stderr, "%d: %s:'%s' != %s:'%s'\n", __LINE__, #a, a, #b, b); \
+exit(1); }}
 
 //==============================================================================
 
@@ -48,7 +40,7 @@ const size_t foobarlen = 6;
 #define X16(s) #s #s #s #s #s #s #s #s #s #s #s #s #s #s #s #s 
 #define BIG X16(aaaabbbbccccdddd)
 #define biglen 256
-// static_assert(strlen(BIG)==biglen, "biglen != 256");
+static_assert(strlen(BIG)==biglen, "biglen != 256");
 const char* big = BIG;
 
 void new() 
@@ -256,32 +248,32 @@ void append()
         assert_cmp (s, expdata);                            \
         stx_free(s);                                        \
     }
-
-    // big dest, no realloc
-    INIT (biglen+1, big, biglen, biglen, big);
-    // big src
-    INIT (foolen  , big, biglen, biglen, big);
-
-    // exact count
-    INIT (foolen  , foo, foolen, foolen, foo);
-    INIT (foolen+1, foo, foolen, foolen, foo);
+    
+    // no room
+    INIT (0, foo, foolen, foolen, foo);
+    // under
     INIT (foolen-1, foo, foolen, foolen, foo);
-    // under count
+    // exact
+    INIT (foolen  , foo, foolen, foolen, foo);
+    // over
+    INIT (foolen+1, foo, foolen, foolen, foo);
+
+    // big
+    INIT (0, big, biglen, biglen, big);
+    INIT (foolen  , big, biglen, biglen, big);
+    INIT (biglen+1, big, biglen, biglen, big);
+
+    // cut
+    INIT (0, foo, foolen-1, foolen-1, "fo");
+    INIT (foolen-1, foo, foolen-1, foolen-1, "fo");
     INIT (foolen  , foo, foolen-1, foolen-1, "fo");
     INIT (foolen+1, foo, foolen-1, foolen-1, "fo");
-    INIT (foolen-1, foo, foolen-1, foolen-1, "fo");
-    // over count
-    // INIT (foolen  , foo, foolen+1, foolen+1, foo);
-    // INIT (foolen+1, foo, foolen+1, foolen, foo);
-    // INIT (foolen-1, foo, foolen+1, foolen, foo);
-
     #undef INIT
 }
 
 void append_strict()
 {
-    #define INIT(cap, src, len, exprc, explen, expdata)    \
-    {                                                       \
+    #define INIT(cap, src, len, exprc, explen, expdata) { \
         stx_t s = stx_new(cap);                            \
         int rc = stx_append_strict (s, src, len);                 \
         ASSERT_INT (rc, (int)exprc);                               \
@@ -289,75 +281,50 @@ void append_strict()
         stx_free(s);                                        \
     }
 
-    // exact count
-    INIT (foolen,    foo, foolen,    foolen,     foolen, foo);
-    INIT (foolen+1,  foo, foolen,    foolen,     foolen, foo);
-    INIT (foolen-1,  foo, foolen,    -foolen,    0,      "");
-    // under count
-    INIT (foolen,    foo, foolen-1, foolen-1,    foolen-1,   "fo");
-    INIT (foolen+1,  foo, foolen-1, foolen-1,    foolen-1,   "fo");
-    INIT (foolen-1,  foo, foolen-1, foolen-1,    foolen-1,   "fo");
-    // over count
-    // INIT (foolen,    foo, foolen+1,  foolen,      foolen, foo);
-    // INIT (foolen+1,  foo, foolen+1,  foolen,      foolen, foo);
-    // INIT (foolen-1,  foo, foolen+1,  -foolen,    0,      "");
-
+    // null: user concern
+    // INIT (foolen,    NULL, foolen,    0,     0, "");    
+    // no room
+    INIT (0, foo, foolen, -foolen, 0, "");
+    // under
+    INIT (foolen-1, foo, foolen,    -foolen, 0, "");
+    // exact
+    INIT (foolen,   foo, foolen,    foolen, foolen, foo);
+    // over
+    INIT (foolen+1, foo, foolen,    foolen, foolen, foo);
+    // cut
+    INIT (foolen,   foo, foolen-1,  foolen-1,   foolen-1,   "fo");
     #undef INIT
 
-    #define MORE(cap, src1, src2, count, exprc, explen, expdata) \
-    { \
+    #define MORE(cap, src, len, exprc, explen, expdata) { \
         stx_t s = stx_new(cap);  \
-        stx_append_strict (s, src1, strlen(src1));       \
-        int rc = stx_append_strict (s, src2, count);                 \
-        if (rc != (int)exprc) {printf("rc:%d exprc:%d\n", rc, (int)exprc); fflush(stdout);} \
-        assert (rc == (int)exprc);                               \
+        stx_append_strict (s, foo, foolen);       \
+        int rc = stx_append_strict (s, src, len);                 \
+        ASSERT_INT (rc, (int)exprc);                               \
         ASSERT_PROPS (s, cap, explen, expdata); \
         stx_free(s); \
     }
     
-    // exact count
-    MORE (foobarlen+1, foo, bar, barlen, barlen, foobarlen, foobar);
-    MORE (foobarlen  , foo, bar, barlen, barlen, foobarlen, foobar);
-    MORE (foobarlen-1, foo, bar, barlen, -foobarlen, foolen, foo);
-    // under count
-    MORE (foobarlen+1, foo, bar, barlen-1, barlen-1, foobarlen-1, "fooba");
-    MORE (foobarlen  , foo, bar, barlen-1, barlen-1, foobarlen-1, "fooba");
-    MORE (foobarlen-1, foo, bar, barlen-1, barlen-1, foobarlen-1, "fooba");
-    // over count
-    // MORE (foobarlen+1, foo, bar, barlen+1, barlen,   foobarlen,  foobar);
-    // MORE (foobarlen  , foo, bar, barlen+1, barlen,   foobarlen,  foobar);
-    // MORE (foobarlen-1, foo, bar, barlen+1, -foobarlen, foolen,   foo);
-
+    // no room
+    MORE (foolen, bar, barlen, -foobarlen, foolen, foo);
+    // under
+    MORE (foolen+1, bar, barlen, -foobarlen, foolen, foo);
+    // exact
+    MORE (foobarlen, bar, barlen, foobarlen, foobarlen, foobar);
+    // over
+    MORE (foobarlen+1, bar, barlen, foobarlen, foobarlen, foobar);
+    // cut
+    MORE (foobarlen, bar, barlen-1, foobarlen-1, foobarlen-1, "fooba");
     #undef MORE
 }
 
 
 void append_fmt()
 {
-    #define INIT(cap, fmt, src, exprc, expcap, explen, expdata)    \
-    {                                                       \
+    #define INIT(cap, fmt, src, exprc, expcap, explen, expdata) { \
         stx_t s = stx_new(cap);                            \
         int rc = stx_append_fmt (&s, fmt, src);                 \
-        ASSERT_INT (rc,  (int)exprc);                               \
+        ASSERT_INT (rc, (int)exprc);                               \
         ASSERT_PROPS (s, expcap, explen, expdata); \
-        stx_free(s);                                        \
-    }
-    #define INIT2(cap, fmt, src1, src2, exprc, expcap, explen, expdata)    \
-    {                                                       \
-        stx_t s = stx_new(cap);                            \
-        int rc = stx_append_fmt (&s, fmt, src1, src2);                 \
-        assert (rc == (int)exprc);                               \
-        ASSERT_PROPS (s, expcap, explen, expdata); \
-        stx_free(s);                                        \
-    }
-
-    #define MORE(cap, fmt, src1, src2, exprc, explen, expdata)    \
-    {                                                       \
-        stx_t s = stx_new(cap);                            \
-        stx_append_fmt (&s, fmt, src1);                 \
-        int rc = stx_append_fmt (&s, fmt, src2);                 \
-        assert (rc == (int)exprc);                               \
-        ASSERT_PROPS (s, cap, explen, expdata); \
         stx_free(s);                                        \
     }
 
@@ -365,43 +332,27 @@ void append_fmt()
     INIT (foolen,   "%s", foo,  foolen, foolen,     foolen, foo);
     INIT (foolen+1, "%s", foo,  foolen, foolen+1,   foolen, foo);
     INIT (foolen-1, "%s", foo,  foolen, foolen,     foolen, foo);
-
-    INIT2 (foobarlen,   "%s%s", foo, bar, foobarlen, foobarlen,   foobarlen, foobar);
-    INIT2 (foobarlen+1, "%s%s", foo, bar, foobarlen, foobarlen+1, foobarlen, foobar);
-    INIT2 (foobarlen-1, "%s%s", foo, bar, foobarlen, foobarlen, foobarlen, foobar);
-
-    MORE (foobarlen*2, "%s", foo, bar, barlen, foobarlen, foobar);
     #undef INIT
-    #undef INIT2
+
+    #define MORE(cap, fmt, src, exprc, expcap, explen, expdata) { \
+        stx_t s = stx_new(cap);                            \
+        stx_append_strict (s, foo, foolen);                 \
+        int rc = stx_append_fmt (&s, fmt, src);                 \
+        ASSERT_INT (rc, (int)exprc);                               \
+        ASSERT_PROPS (s, cap, explen, expdata); \
+        stx_free(s);                                        \
+    }
+
+    MORE (foobarlen, "%s", bar, foobarlen, foobarlen, foobarlen, foobar);
     #undef MORE
 }
 
 
 void append_fmt_strict()
 {
-    #define INIT(cap, fmt, src, exprc, explen, expdata)    \
-    {                                                       \
+    #define INIT(cap, fmt, src, exprc, explen, expdata) { \
         stx_t s = stx_new(cap);                            \
         int rc = stx_append_fmt_strict (s, fmt, src);                 \
-        assert (rc == (int)exprc);                               \
-        ASSERT_PROPS (s, cap, explen, expdata); \
-        stx_free(s);                                        \
-    }
-
-    #define INIT2(cap, fmt, src1, src2, exprc, explen, expdata)    \
-    {                                                       \
-        stx_t s = stx_new(cap);                            \
-        int rc = stx_append_fmt_strict (s, fmt, src1, src2);                 \
-        assert (rc == (int)exprc);                               \
-        ASSERT_PROPS (s, cap, explen, expdata); \
-        stx_free(s);                                        \
-    }
-
-    #define MORE(cap, fmt, src1, src2, exprc, explen, expdata)    \
-    {                                                       \
-        stx_t s = stx_new(cap);                            \
-        stx_append_fmt_strict (s, fmt, src1);                 \
-        int rc = stx_append_fmt_strict (s, fmt, src2);                 \
         assert (rc == (int)exprc);                               \
         ASSERT_PROPS (s, cap, explen, expdata); \
         stx_free(s);                                        \
@@ -410,12 +361,33 @@ void append_fmt_strict()
     INIT (foolen,   "%s", foo,  foolen,  foolen, foo);
     INIT (foolen+1, "%s", foo,  foolen,  foolen, foo);
     INIT (foolen-1, "%s", foo,  -foolen, 0,      "");
+    #undef INIT
 
-    INIT2 (foobarlen,   "%s%s", foo, bar, foobarlen, foobarlen, foobar);
-    INIT2 (foobarlen+1, "%s%s", foo, bar, foobarlen, foobarlen, foobar);
-    INIT2 (foobarlen-1, "%s%s", foo, bar, -foobarlen, 0, "");
+    #define MIX(cap, fmt, src1, src2, exprc, explen, expdata)    \
+    {                                                       \
+        stx_t s = stx_new(cap);                            \
+        int rc = stx_append_fmt_strict (s, fmt, src1, src2);                 \
+        assert (rc == (int)exprc);                               \
+        ASSERT_PROPS (s, cap, explen, expdata); \
+        stx_free(s);                                        \
+    }
 
-    MORE (foobarlen*2, "%s", foo, bar, barlen, foobarlen, foobar);
+    MIX (foobarlen,   "%s%s", foo, bar, foobarlen, foobarlen, foobar);
+    MIX (foobarlen+1, "%s%s", foo, bar, foobarlen, foobarlen, foobar);
+    MIX (foobarlen-1, "%s%s", foo, bar, -foobarlen, 0, "");
+    #undef MIX
+
+    #define MORE(cap, fmt, src, exprc, explen, expdata) {   \
+        stx_t s = stx_new(cap);                            \
+        stx_append_strict (s, foo, foolen);                 \
+        int rc = stx_append_fmt_strict (s, fmt, src);                 \
+        assert (rc == (int)exprc);                               \
+        ASSERT_PROPS (s, cap, explen, expdata); \
+        stx_free(s);                                        \
+    }
+
+    MORE (foobarlen, "%s", bar, foobarlen, foobarlen, foobar);
+    #undef MORE
 }
 //==============================================================================
 
