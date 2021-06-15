@@ -50,7 +50,7 @@ static_assert (sizeof(Prop4)==(1<<TYPE4), "bad TYPE4");
 #define MAGIC 0xaa
 #define TYPE_BITS 2
 #define TYPE_MASK ((1<<TYPE_BITS)-1)
-#define SMALL_CAP 255
+#define SMALL_MAX 255 // = max 8bit strlen(data)
 #define DATAOFF offsetof(Attr,data)
 
 #define FLAGS(s) (((uint8_t*)(s))[-1]) // faster than safer attr->flags ?
@@ -96,7 +96,7 @@ HGETSPC (const void* head, Type type){
     }  
 }
 
-#define LEN_TYPE(len) ((len <= SMALL_CAP) ? TYPE1 : TYPE4)
+#define LEN_TYPE(len) ((len <= SMALL_MAX) ? TYPE1 : TYPE4)
 
 //==== PRIVATE =================================================================
 
@@ -450,16 +450,18 @@ stx_append_fmt (stx_t* dst, const char* fmt, ...)
 
 
 long long 
-stx_append_fmt_strict (stx_t dst, const char* fmt, ...) 
+stx_append_fmt_strict (stx_t s, const char* fmt, ...) 
 {
-    const void* head = HEAD(dst);
-    const Type type = TYPE(dst);
+    if (!CHECK(s)) return 0;
+
+    const void* head = HEAD(s);
+    const Type type = TYPE(s);
     const size_t len = HGETLEN(head, type);
     const size_t spc = HGETSPC(head, type);
 
     if (!spc) return 0;
 
-    char* end = ((char*)dst) + len;
+    char* end = ((char*)s) + len;
 
     va_list args;
     va_start(args, fmt);
@@ -479,7 +481,7 @@ stx_append_fmt_strict (stx_t dst, const char* fmt, ...)
     // Truncation
     if (inlen > (int)spc) {
         
-        STX_WARN("stx_append_fmt_strict: truncation\n");
+        STX_WARN("stx_append_fmt_strict: would truncate\n");
         *end = 0; // undo
         return -totlen; 
     } 

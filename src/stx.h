@@ -46,8 +46,8 @@ stx_t	stx_dup (stx_t src);
 
 // append
 size_t		stx_append (stx_t* dst, const void* src, size_t srclen);
-size_t		stx_append_fmt (stx_t* dst, const char* fmt, ...);
 long long	stx_append_strict (stx_t dst, const void* src, size_t srclen);
+size_t		stx_append_fmt (stx_t* dst, const char* fmt, ...);
 long long	stx_append_fmt_strict (stx_t dst, const char* fmt, ...);
 
 // split
@@ -71,6 +71,12 @@ bool	stx_equal (stx_t a, stx_t b);
 bool	stx_check (stx_t s);
 void 	stx_dbg (stx_t s);
 void 	stx_dbg_all (stx_t s);
+
+// Shorthands
+#define stx_cat		stx_append
+#define stx_cats	stx_append_strict
+#define stx_catf	stx_append_fmt
+#define stx_catfs	stx_append_fmt_strict
 
 
 #endif

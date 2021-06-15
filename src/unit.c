@@ -12,23 +12,25 @@
 
 #define assert_cmp(a,b) assert(!strcmp((a),(b))) 
 
-#define ASSERT_PROPS(s, cap, len, data) \
-ASSERT_INT (stx_cap(s), cap); \
-ASSERT_INT (stx_len(s), len); \
-ASSERT_STR ((s), data)
-
-// 
 #define ASSERT_INT(a, b) { if ((a)!=(b)) { \
 fprintf(stderr, "%d: %s:%d != %s:%d\n", __LINE__, #a, (int)a, #b, (int)b); \
-exit(1); }}
+exit(1);\
+}}
 
 #define ASSERT_STR(a, b) { if (strcmp(a, b)) {\
 fprintf(stderr, "%d: %s:'%s' != %s:'%s'\n", __LINE__, #a, a, #b, b); \
 exit(1); }}
 
+#define assert_props(s, cap, len, data) {\
+    ASSERT_INT (stx_cap(s), cap);\
+    ASSERT_INT (stx_len(s), len);\
+    ASSERT_STR ((s), data);\
+}
+
 //==============================================================================
 
 #define CAP 100  
+#define SMALL_MAX 255
 
 const char* foo = "foo";
 const size_t foolen = 3;
@@ -37,144 +39,174 @@ const size_t barlen = 3;
 const char* foobar = "foobar";
 const size_t foobarlen = 6;
 
-#define X16(s) #s #s #s #s #s #s #s #s #s #s #s #s #s #s #s #s 
-#define BIG X16(aaaabbbbccccdddd)
+#define l64 "abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbc"
+const char* big = l64 l64 l64 l64;
 #define biglen 256
-static_assert(strlen(BIG)==biglen, "biglen != 256");
-const char* big = BIG;
+static_assert (biglen > SMALL_MAX, "biglen");
+
+//==============================================================================
+
+#define u_new(cap) {\
+    stx_t s = stx_new(cap);\
+    assert_props (s, cap, 0, ""); \
+    stx_free(s);\
+}
 
 void new() 
 { 
-    stx_t s;
+    u_new (0); 
+    u_new (SMALL_MAX-1); 
+    u_new (SMALL_MAX); 
+    u_new (SMALL_MAX+1); 
+    #undef u_new    
+}
 
-    s = stx_new(0);
-    ASSERT_PROPS (s, 0, 0, ""); 
-    
-    s = stx_new(CAP);
-    ASSERT_PROPS (s, CAP, 0, ""); 
-    
-    stx_free(s);
+//==============================================================================
+
+#define u_from(src, expcap, explen, expdata){\
+    stx_t s = stx_from(src);\
+    assert_props (s, expcap, explen, expdata);\
+    stx_free(s);\
 }
 
 void from() 
-{
-    stx_t s;
-    
-    s = stx_from (NULL);
-    ASSERT_PROPS (s, 0, 0, ""); 
+{    
+    u_from (NULL,   0, 0, ""); 
+    u_from ("",     0, 0, ""); 
+    u_from (foo,    foolen,    foolen, foo); 
+    u_from (big,    biglen,    biglen, big); 
+}
 
-    s = stx_from ("");
-    ASSERT_PROPS (s, 0, 0, ""); 
-
-    s = stx_from(foo);
-    ASSERT_PROPS (s, foolen, foolen, foo); 
-
-    stx_free(s);
+#define u_from_len(src, srclen, expcap, explen, expdata){\
+    stx_t s = stx_from_len(src,srclen);\
+    assert_props (s, expcap, explen, expdata);\
+    stx_free(s);\
 }
 
 void from_len() 
 {
-    stx_t s;
+    u_from_len (NULL, 0,       0, 0, ""); 
+    u_from_len (NULL, CAP,     0, 0, ""); 
+    u_from_len ("", 0,         0, 0, ""); 
+    // u_from_len ("", CAP,       CAP, CAP, "");
+    u_from_len (foo, 0,        0, 0, ""); 
+    u_from_len (foo, foolen-1, foolen-1, foolen-1, "fo");     
+    u_from_len (foo, foolen,   foolen, foolen, foo); 
+    u_from_len (foo, foolen+1, foolen+1, foolen+1, foo); 
+}
+//==============================================================================
 
-    s = stx_from_len (foo, foolen);
-    ASSERT_PROPS (s, foolen, foolen, foo); 
-
-    s = stx_from_len (foo, foolen-1);
-    ASSERT_PROPS (s, foolen-1, foolen-1, "fo");     
-
-    /* fails if from_len uses blind memcpy */
-    // s = stx_from_len (foo, foolen+1);
-    // ASSERT_PROPS (s, foolen+1, foolen, foo); 
-
-    s = stx_from_len (foo, 0);
-    ASSERT_PROPS (s, 0, 0, ""); 
-    
-    s = stx_from_len (NULL, 0);
-    ASSERT_PROPS (s, 0, 0, ""); 
-
-    s = stx_from_len (NULL, CAP);
-    ASSERT_PROPS (s, 0, 0, ""); 
-
-    s = stx_from_len ("", 0);
-    ASSERT_PROPS (s, 0, 0, ""); 
-    
-    /* fails if from_len uses blind memcpy */
-    // s = stx_from_len ("", CAP);
-    // ASSERT_PROPS (s, CAP, 0, "");
-
-    stx_free(s);
+#define u_dup_from(src) {\
+    stx_t s = stx_from(src);\
+    stx_t d = stx_dup(s);\
+    const size_t len = stx_len(s);\
+    assert_props (d, len, len, src); \
+    stx_free(s); stx_free(d);\
 }
 
 void dup() 
 {
-    stx_t s = stx_new(foolen+1);
-    stx_append_strict (s, foo, foolen);
-    stx_t dup = stx_dup(s);
-    ASSERT_PROPS (dup, foolen, foolen, foo);
-    stx_free(s);
+    // u_dup_from(NULL);
+    u_dup_from("");
+    u_dup_from(foo);
+    u_dup_from(big);
 }
 
+//==============================================================================
 
-void free_() 
+void u_free(stx_t s) 
 {
-    stx_t s = stx_new(3); //stx_from(foo);
     stx_free(s);
 
-    // double free
-    stx_free(s);
-    
-    // use after free
-    assert (!stx_cap(s));
-    assert (!stx_len(s));
-    assert (!stx_spc(s));
-    assert (!stx_resize (&s,10));
     assert (!stx_dup(s));
+
     assert (0 == stx_append (&s, foo, foolen));
     assert (0 == stx_append_strict (s, foo, foolen));
     assert (0 == stx_append_fmt (&s, "%s", foo));
+    assert (0 == stx_append_fmt_strict (s, "%s", foo));
+
+    assert (!stx_resize (&s,10));
+    stx_reset(s);
+    stx_adjust(s);
+    stx_trim(s);
+
+    // assert (!stx_equal(s, u);
+    assert (!stx_check(s));
+    assert (!stx_cap(s));
+    assert (!stx_len(s));
+    assert (!stx_spc(s));
 }
 
-
-void resize()
+void free_() 
 {
     stx_t s;
 
-    s = stx_new(CAP);
-    stx_resize(&s, 0);
-    ASSERT_PROPS (s, 0, 0, ""); 
-
-    s = stx_new(CAP);
-    stx_resize(&s, 1);
-    ASSERT_PROPS (s, 1, 0, ""); 
-
-    s = stx_new(CAP);
-    stx_resize(&s, CAP);
-    ASSERT_PROPS (s, CAP, 0, ""); 
-
-    s = stx_new(CAP);
-    stx_resize(&s, CAP+1);
-    ASSERT_PROPS (s, CAP+1, 0, ""); 
-
-    s = stx_new(CAP);
-    stx_append_strict(s,foo, foolen);
-    stx_resize(&s, 2);
-    ASSERT_PROPS (s, 2, 2, "fo"); 
-
-    s = stx_new(CAP);
-    stx_append_strict(s,foo, foolen);
-    stx_resize(&s, foolen+1);
-    ASSERT_PROPS (s, foolen+1, foolen, foo); 
-
-
-    stx_free(s);
+    s = stx_new(foobarlen);
+    // use after free
+    u_free(s);
+    // double free
+    u_free(s);
+    
+    s = stx_from(foo);
+    u_free(s);
+    u_free(s);
 }
 
+//==============================================================================
+#define u_rsznew(cap,sz){\
+    stx_t s = stx_new(cap);\
+    stx_resize(&s, sz);\
+    assert_props (s, sz, 0, "");\
+    stx_free(s);}
+
+#define u_rszfrom(src,sz, explen, expdata){\
+    stx_t s = stx_from(src);\
+    stx_resize(&s, sz);\
+    assert_props (s, sz, explen, expdata);\
+    stx_free(s);}
+
+void resize()
+{
+    u_rsznew (0, 0);
+    u_rsznew (0, SMALL_MAX);
+    u_rsznew (0, SMALL_MAX+1);
+
+    u_rsznew (CAP, 0);
+    u_rsznew (CAP, CAP);
+    u_rsznew (CAP, SMALL_MAX);
+    u_rsznew (CAP, SMALL_MAX+1);
+
+    u_rsznew (SMALL_MAX, 0);
+    u_rsznew (SMALL_MAX, SMALL_MAX-1);
+    u_rsznew (SMALL_MAX, SMALL_MAX);
+    u_rsznew (SMALL_MAX, SMALL_MAX+1);
+
+    u_rsznew (SMALL_MAX+1,0);
+    u_rsznew (SMALL_MAX+1,SMALL_MAX);
+    u_rsznew (SMALL_MAX+1,SMALL_MAX+2);
+
+    u_rszfrom ("", 0,   0, "");
+    u_rszfrom ("", CAP,   0, "");
+    u_rszfrom ("", SMALL_MAX+1,   0, "");
+
+    u_rszfrom (foo, 0,  0,"");
+    u_rszfrom (foo, 2, 2, "fo");
+    u_rszfrom (foo, SMALL_MAX, foolen, foo);
+    u_rszfrom (foo, SMALL_MAX+1, foolen, foo);
+
+    u_rszfrom (big, 0,  0,"");
+    // u_rszfrom (big, 64, 64, l64);
+    // u_rszfrom (big, SMALL_MAX+1, biglen, big);
+
+}
+
+//==============================================================================
 void reset()
 {
     stx_t s = stx_new(CAP);
     stx_append_strict (s, foo, foolen);
     stx_reset(s);
-    ASSERT_PROPS (s, CAP, 0, ""); 
+    assert_props (s, CAP, 0, ""); 
     stx_free(s);
 }
 
@@ -184,7 +216,7 @@ void adjust()
     stx_append_strict (s, foo, foolen);
     ((char*)s)[foolen-1] = 0;
     stx_adjust(s);
-    ASSERT_PROPS (s, CAP, foolen-1, "fo"); 
+    assert_props (s, CAP, foolen-1, "fo"); 
     stx_free(s);
 }
 
@@ -228,13 +260,13 @@ void trim()
     s = stx_new(CAP);
     stx_append_strict (s, str, len);
     stx_trim(s);
-    ASSERT_PROPS(s, CAP, foolen, foo);
+    assert_props(s, CAP, foolen, foo);
 
     str = "foo "; len = strlen(str);
     s = stx_new(CAP);
     stx_append_strict (s, str, len);
     stx_trim(s);
-    ASSERT_PROPS(s, CAP, foolen, foo);
+    assert_props(s, CAP, foolen, foo);
 }
 
 //==============================================================================
@@ -273,11 +305,11 @@ void append()
 
 void append_strict()
 {
-    #define INIT(cap, src, len, exprc, explen, expdata) { \
+    #define INIT(cap, src, len,   exprc, explen, expdata) { \
         stx_t s = stx_new(cap);                            \
         int rc = stx_append_strict (s, src, len);                 \
         ASSERT_INT (rc, (int)exprc);                               \
-        ASSERT_PROPS (s, cap, explen, expdata); \
+        assert_props (s, cap, explen, expdata); \
         stx_free(s);                                        \
     }
 
@@ -285,14 +317,19 @@ void append_strict()
     // INIT (foolen,    NULL, foolen,    0,     0, "");    
     // no room
     INIT (0, foo, foolen, -foolen, 0, "");
+    INIT (0, big, biglen, -biglen, 0, "");
     // under
     INIT (foolen-1, foo, foolen,    -foolen, 0, "");
+    INIT (biglen-1, big, biglen,    -biglen, 0, "");
     // exact
-    INIT (foolen,   foo, foolen,    foolen, foolen, foo);
+    INIT (foolen, foo, foolen,    foolen, foolen, foo);
+    INIT (biglen, big, biglen,    biglen, biglen, big);
     // over
     INIT (foolen+1, foo, foolen,    foolen, foolen, foo);
+    INIT (biglen+1, big, biglen,    biglen, biglen, big);
     // cut
-    INIT (foolen,   foo, foolen-1,  foolen-1,   foolen-1,   "fo");
+    INIT (foolen, foo, foolen-1,  foolen-1,   foolen-1,   "fo");
+    INIT (biglen, big, 64,    64, 64, l64);
     #undef INIT
 
     #define MORE(cap, src, len, exprc, explen, expdata) { \
@@ -300,10 +337,11 @@ void append_strict()
         stx_append_strict (s, foo, foolen);       \
         int rc = stx_append_strict (s, src, len);                 \
         ASSERT_INT (rc, (int)exprc);                               \
-        ASSERT_PROPS (s, cap, explen, expdata); \
+        assert_props (s, cap, explen, expdata); \
         stx_free(s); \
     }
     
+    // todo big
     // no room
     MORE (foolen, bar, barlen, -foobarlen, foolen, foo);
     // under
@@ -324,7 +362,7 @@ void append_fmt()
         stx_t s = stx_new(cap);                            \
         int rc = stx_append_fmt (&s, fmt, src);                 \
         ASSERT_INT (rc, (int)exprc);                               \
-        ASSERT_PROPS (s, expcap, explen, expdata); \
+        assert_props (s, expcap, explen, expdata); \
         stx_free(s);                                        \
     }
 
@@ -339,7 +377,7 @@ void append_fmt()
         stx_append_strict (s, foo, foolen);                 \
         int rc = stx_append_fmt (&s, fmt, src);                 \
         ASSERT_INT (rc, (int)exprc);                               \
-        ASSERT_PROPS (s, cap, explen, expdata); \
+        assert_props (s, cap, explen, expdata); \
         stx_free(s);                                        \
     }
 
@@ -354,7 +392,7 @@ void append_fmt_strict()
         stx_t s = stx_new(cap);                            \
         int rc = stx_append_fmt_strict (s, fmt, src);                 \
         assert (rc == (int)exprc);                               \
-        ASSERT_PROPS (s, cap, explen, expdata); \
+        assert_props (s, cap, explen, expdata); \
         stx_free(s);                                        \
     }
 
@@ -368,7 +406,7 @@ void append_fmt_strict()
         stx_t s = stx_new(cap);                            \
         int rc = stx_append_fmt_strict (s, fmt, src1, src2);                 \
         assert (rc == (int)exprc);                               \
-        ASSERT_PROPS (s, cap, explen, expdata); \
+        assert_props (s, cap, explen, expdata); \
         stx_free(s);                                        \
     }
 
@@ -382,7 +420,7 @@ void append_fmt_strict()
         stx_append_strict (s, foo, foolen);                 \
         int rc = stx_append_fmt_strict (s, fmt, src);                 \
         assert (rc == (int)exprc);                               \
-        ASSERT_PROPS (s, cap, explen, expdata); \
+        assert_props (s, cap, explen, expdata); \
         stx_free(s);                                        \
     }
 
@@ -394,8 +432,8 @@ void append_fmt_strict()
 void story()
 {
     stx_t a = stx_new(foolen);
-    stx_append_strict(a,big,biglen); //nop
-    stx_append_strict(a,foo,foolen); //a==foo
+    stx_append_strict (a, big, biglen); //nop
+    stx_append_strict (a, foo, foolen); //a==foo
 
     stx_t b = stx_from(bar);
     stx_t c = stx_dup(b); //c==bar
@@ -405,7 +443,6 @@ void story()
 
     stx_reset(b);
     stx_resize(&b,foobarlen);
-    stx_append_strict(b,"", 0);
     stx_append_fmt(&b, "%s%s", foo, c); //b==foobar
 
     assert_cmp(a,b);
@@ -434,10 +471,10 @@ splitter fun, const char* str, const char* sep, size_t expc, char* exps[])
     while ((s = *l++)) {
         const char* exp = exps[i++];
         const size_t explen = strlen(exp);
-        ASSERT_PROPS (s, explen, explen, exp);
+        assert_props (s, explen, explen, exp);
     }
 
-    // stx_list_free(list);
+    stx_list_free(list);
 }
 
 
@@ -455,13 +492,13 @@ void split_pat (splitter fun, const char* word, const char* sep, size_t n)
     
     for (size_t i = 0; i < cnt-1; ++i) {
         stx_t s = list[i];
-        ASSERT_PROPS (s, wordlen, wordlen, word);
+        assert_props (s, wordlen, wordlen, word);
     }
     ASSERT_STR(list[cnt-1], "");
 
-    // free((char*)pat);
-    // free((char*)txt);
-    // stx_list_free(list);
+    free((char*)pat);
+    free((char*)txt);
+    stx_list_free(list);
 }
 
 void split_unit(splitter fun)
@@ -481,7 +518,7 @@ void split_unit(splitter fun)
     split_pat (fun, FOO, SEP, STX_POOL_MAX);
     split_pat (fun, FOO, SEP, STX_POOL_MAX+1);
 
-    split_pat (fun, FOO, SEP, 20000000);
+    // split_pat (fun, FOO, SEP, 20000000);
 }
 
 void split() {split_unit(stx_split_len);}
@@ -497,14 +534,18 @@ void split() {split_unit(stx_split_len);}
 
 int main()
 {
+    assert(strlen(big)==biglen);
+    
     run(new);
     run(from);
     run(from_len);
+    run(dup);
+    
     run(append);
     run(append_strict);
     run(append_fmt);
     run(append_fmt_strict);
-    run(dup);
+    
     run(reset);
     run(adjust);
     run(resize);
@@ -512,11 +553,11 @@ int main()
     run(free_);
     run(equal);
     run(trim);
-    // run(str_count_str_);
-    run(story);
-    
+        
     run(split);
     // run(split_fast);
+    
+    run(story);
 
     printf ("unit tests OK\n");
     return 0;

@@ -6,7 +6,7 @@ CP = $(CC) -std=$(STD) $(WARN) $(OPTIM) -g
 COMP = $(CP) -c $< -o $@
 LINK = $(CP) $^ -o $@
 
-lib		= bin/libstx
+lib		= bin/stx
 unit 	= bin/unit
 bench 	= bin/bench
 example	= bin/example
@@ -20,7 +20,7 @@ all: $(lib) $(unit) $(bench) $(example) $(sandbox)
 $(lib): src/stx.c src/stx.h src/util.c
 	@ echo $@
 	@ $(COMP) #-D ENABLE_LOG -D STX_WARNINGS
-	@ ./$(unit)
+# 	@ ./$(unit)
 
 $(sds): sds/sds.c sds/sds.h
 	@ echo $@
@@ -29,7 +29,7 @@ $(sds): sds/sds.c sds/sds.h
 $(unit): src/unit.c $(lib) src/util.c
 	@ echo $@
 	@ $(CP) $< $(lib) -o $@
-	@ ./$(unit)
+# 	@ ./$(unit)
 
 $(bench): src/bench.c $(lib) $(sds)
 	@ echo $@

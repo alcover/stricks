@@ -377,6 +377,8 @@ stx_free(s);
 On first call, `stx_free(s)` zeroes-out the header, erasing the `canary`.  
 All subsequent API calls, seeing no canary, do nothing.
 
+:heavy_exclamation_mark: **Caveat**  
+Your compiler may optimize-out the canary deletion, seeing the block is to be freed..
 
 ### stx_reset    
 Sets length to zero.  
