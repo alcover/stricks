@@ -1,5 +1,5 @@
 /*
-Stricks v0.4.0
+Stricks v0.4.2
 Copyright (C) 2021 - Francois Alcover <francois[@]alcover.fr>
 NO WARRANTY EXPRESSED OR IMPLIED.
 */
@@ -129,39 +129,41 @@ resize (stx_t *ps, size_t newcap)
     const size_t len = HGETLEN(head, type);
 
     if (newcap == cap) return true;
-    
+    // newcap < cap : optim realloc only if < 1/2 ?
+
     const Type newtype = LEN_TYPE(newcap);
     const bool sametype = (newtype == type);
     const size_t newsize = TOTSZ(newtype, newcap);
-   
+    
     void* newhead = sametype ? STX_REALLOC((void*)head, newsize)
-                             : STX_MALLOC (newsize);
+                             : STX_MALLOC(newsize);
 
     if (!newhead) {
         ERR ("stx_resize: realloc failed\n");
         return false;
     }
     
-    stx_t newdata = DATA(newhead, newtype);
+    char* newdata = DATA(newhead, newtype);
+    size_t newlen = min(len,newcap);
     
     if (!sametype) {
-        memcpy((char*)newdata, s, len+1); //?
-
-        HSETLEN(newhead, newtype, len);
-        CANARY(newdata) = MAGIC;
+        
+        // copy attributes + data
+        memcpy (newdata-DATAOFF, s-DATAOFF, DATAOFF+newlen); //?
+        newdata[newlen] = 0; //nec?
+        
+        // update type
         FLAGS(newdata) = (FLAGS(newdata) & ~TYPE_MASK) | newtype;
 
         free((void*)head);
     }
     
-    // truncated
-    if (newcap < len) HSETLEN(newhead, newtype, newcap);
-
-    // update cap
     HSETCAP(newhead, newtype, newcap); 
-    
     // update cap sentinel
-    ((char*)(newdata))[newcap] = 0;
+    newdata[newcap] = 0;
+
+    // if (newlen != len) 
+        HSETLEN(newhead, newtype, newlen);
     
     *ps = newdata;
 
@@ -170,9 +172,9 @@ resize (stx_t *ps, size_t newcap)
 
 
 static long long 
-append (void* dst, const void* src, size_t srclen, bool alloc) 
+append (stx_t* dst, const void* src, size_t srclen, bool strict) 
 {
-    stx_t s = alloc ? *((stx_t**)(dst)) : dst;
+    stx_t s = *dst;
     
     if (!CHECK(s)) return 0;
 
@@ -182,16 +184,15 @@ append (void* dst, const void* src, size_t srclen, bool alloc)
     const size_t len = HGETLEN(head, type);
     const size_t totlen = len + srclen;
 
-    // s might change !
     if (totlen > cap) {  
         // Would truncate, return needed capacity
-        if (!alloc) return -totlen;
+        if (strict) return -totlen;
 
         if (!resize(&s, totlen*2)) {
             ERR("resize failed");
             return 0;
         }
-        *((stx_t*)(dst)) = s;
+        *dst = s;
     }
 
     char* end = (char*)s + len;
@@ -200,6 +201,58 @@ append (void* dst, const void* src, size_t srclen, bool alloc)
     setlen(s, totlen);
 
     return totlen;        
+}
+
+
+static long long 
+append_fmt (stx_t* dst, bool strict, const char* fmt, va_list args) 
+{
+    if (!dst) return 0;
+    
+    stx_t s = *dst;
+    if (!CHECK(s)) return 0;
+
+    va_list argscpy;
+    va_copy(argscpy, args);
+    
+    errno = 0;
+    const int inlen = vsnprintf(NULL, 0, fmt, args);
+
+    if (inlen < 0) {
+        perror("vsnprintf");
+        return 0;
+    }
+
+    Type type = TYPE(s);
+    void* head = HEADT(s, type);
+    const size_t cap = HGETCAP(head, type);
+    const size_t len = HGETLEN(head, type);
+    const size_t totlen = len+inlen;
+     
+    // Truncation
+    if (totlen > cap) {
+
+        if (strict) {
+            STX_WARN("stx: append_fmt strict: would truncate\n");
+            return -totlen;            
+        }
+         
+        if (!resize(dst, totlen)) {
+            ERR("resize failed");
+            return 0;
+        }
+        s = *dst;
+        type = LEN_TYPE(totlen);
+        head = HEADT(s, type);
+    } 
+
+    vsprintf((char*)s+len, fmt, argscpy);
+    va_end(argscpy);
+
+    // Update length
+    HSETLEN(head, type, totlen);
+
+    return totlen;           
 }
 
 
@@ -259,7 +312,7 @@ from (const char* src, size_t srclen)
 
     attr->canary = MAGIC;
     attr->flags = type;
-    memcpy (data, src, srclen); //optim cpy srclen+1 ?
+    memcpy (data, src, srclen); //optim argscpy srclen+1 ?
     data[srclen] = 0; 
 
     return data;
@@ -275,34 +328,32 @@ from_to (const char* src, size_t srclen, char* head)
     HSETPROPS(head, type, srclen, srclen);
     attr->canary = MAGIC;
     attr->flags = type;
-    memcpy (data, src, srclen); //optim cpy srclen+1 ?
+    memcpy (data, src, srclen); //optim copy srclen+1 ?
     data[srclen] = 0; 
 
     return data;
 }
 
 static void
-dbg (stx_t s, bool deep)
+dbg (stx_t s)
 {
+    #define FMT "cap:%zu len:%zu canary:%x flags:%x data:\"%s\"\n"
+    #define ARGS (size_t)(h->cap), (size_t)(h->len), CANARY(s), FLAGS(s), s
+
     if (!CHECK(s)) ERR("stx_dbg: invalid");
 
     const void* head = HEAD(s);
     const Type type = TYPE(s);
 
-    #define FMT "cap:%zu len:%zu data:\"%s\"\n"
-    #define ARGS (size_t)(h->cap), (size_t)(h->len), s
-    #define FMT_DEEP "cap:%zu len:%zu canary:%x flags:%x data:\"%s\"\n"
-    #define ARGS_DEEP (size_t)(h->cap), (size_t)(h->len), CANARY(s), FLAGS(s), s
-
     switch(type){
         case TYPE4: {
             Prop4* h = (Prop4*)head;
-            if (deep) printf(FMT_DEEP, ARGS_DEEP); else printf(FMT, ARGS);
+            printf(FMT, ARGS);
             break;
         }
         case TYPE1: {
             Prop1* h = (Prop1*)head;
-            if (deep) printf(FMT_DEEP, ARGS_DEEP); else printf(FMT, ARGS);
+            printf(FMT, ARGS);
             break;
         }
         default: ERR("stx_dbg: unknown type\n");
@@ -310,9 +361,6 @@ dbg (stx_t s, bool deep)
 
     #undef FMT
     #undef ARGS
-    #undef FMT_DEEP
-    #undef ARGS_DEEP
-
     fflush(stdout);
 }
 
@@ -391,106 +439,38 @@ stx_spc (stx_t s)
 size_t 
 stx_append (stx_t* dst, const void* src, size_t srclen)
 {
-    return append((void*)dst, src, srclen, true);        
+    return append(dst, src, srclen, false);        
 }
 
 long long 
 stx_append_strict (stx_t dst, const void* src, size_t srclen) 
 {
-    return append((void*)dst, src, srclen, false);       
+    return append(&dst, src, srclen, true);       
 }
+
+
 
 size_t 
-stx_append_fmt (stx_t* dst, const char* fmt, ...) 
+stx_append_fmt (stx_t* dst, const char* fmt, ...)
 {
-    if (!dst) return 0;
-    
-    stx_t s = *dst;
-    if (!CHECK(s)) return 0;
-
     va_list args;
     va_start(args, fmt);
-    errno = 0;
-    const int inlen = vsnprintf(NULL, 0, fmt, args);
+    long long ret = append_fmt(dst, false, fmt, args);
     va_end(args);
 
-    if (inlen < 0) {
-        perror("vsnprintf");
-        return 0;
-    }
-
-    Type type = TYPE(s);
-    void* head = HEADT(s, type);
-    const size_t cap = HGETCAP(head, type);
-    const size_t len = HGETLEN(head, type);
-    const size_t totlen = len+inlen;
-     
-    // Truncation
-    if (totlen > cap) {
-         
-        if (!resize(dst, totlen)) {
-            ERR("resize failed");
-            return 0;
-        }
-        s = *dst;
-        type = LEN_TYPE(totlen);
-        head = HEADT(s, type);
-    } 
-
-    // segfault if not va_start again (?)
-    va_start(args, fmt);
-    vsprintf(((char*)s)+len, fmt, args);
-    va_end(args);
-
-    // Update length
-    HSETLEN(head, type, totlen);
-
-    return totlen;           
-}
-
+    return ret;
+} 
 
 long long 
-stx_append_fmt_strict (stx_t s, const char* fmt, ...) 
+stx_append_fmt_strict (stx_t dst, const char* fmt, ...)
 {
-    if (!CHECK(s)) return 0;
-
-    const void* head = HEAD(s);
-    const Type type = TYPE(s);
-    const size_t len = HGETLEN(head, type);
-    const size_t spc = HGETSPC(head, type);
-
-    if (!spc) return 0;
-
-    char* end = ((char*)s) + len;
-
     va_list args;
     va_start(args, fmt);
+    long long ret = append_fmt(&dst, true, fmt, args);
     va_end(args);
 
-    errno = 0;
-    const int inlen = vsnprintf(end, spc+1, fmt, args);
-    const size_t totlen = len+inlen;
-     
-    // Error
-    if (inlen < 0) {
-        perror("stx_append_format");
-        *end = 0; // undo
-        return 0;
-    }
-
-    // Truncation
-    if (inlen > (int)spc) {
-        
-        STX_WARN("stx_append_fmt_strict: would truncate\n");
-        *end = 0; // undo
-        return -totlen; 
-    } 
-
-    // Update length
-    HSETLEN(head, type, totlen);
-
-    return totlen;
-}
+    return ret;
+} 
 
 bool
 stx_resize (stx_t *ps, size_t newcap)
@@ -512,8 +492,7 @@ stx_equal (stx_t a, stx_t b)
 }
 
 bool stx_check (stx_t s) {return CHECK(s);}
-void stx_dbg (stx_t s) {dbg(s,false);}
-void stx_dbg_all (stx_t s) {dbg(s,true);}
+void stx_dbg (stx_t s) {dbg(s);}
 
 
 // todo new fit type ?

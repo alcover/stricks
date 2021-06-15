@@ -244,27 +244,27 @@ Appends `len` bytes from `src` to `*dst`.
 
 Return code :  
 * `rc = 0`   on error.  
-* `rc >= 0`  on success, as change in length.  
+* `rc >= 0`  on success, as new length.  
 
 ```C
-stx_t s = stx_new(3);  
-stx_append(s, "abc"); 
-stx_append(s, "def"); //-> 3 
-stx_dbg(s); // "cap:12 len:6 data:'abcdef'"
+stx_t s = stx_from("abc"); 
+stx_append(&s, "def"); //-> 6 
+stx_dbg(s); 
+// cap:12 len:6 data:'abcdef'
 ```
 
 
 ### stx_append_strict
  
 ```C
-int stx_append_strict (stx_t dst, const char* src, size_t len)
+long long stx_append_strict (stx_t dst, const char* src, size_t len)
 ```
 Appends `len` bytes from `src` to `dst`, in place.  
 * **No reallocation**.
 * Nothing done if input exceeds remaining space.
 
 Return code :  
-* `rc >= 0`  on success, as change in length.  
+* `rc >= 0`  on success, as new length.  
 * `rc < 0`   on potential truncation, as needed capacity. 
 * `rc = 0`   on error.  
 
@@ -279,7 +279,28 @@ printf(s); // "abc"
 
 ### stx_append_fmt   
 ```C
-int stx_append_fmt (stx_t dst, const char* fmt, ...)
+size_t stx_append_fmt (stx_t* dst, const char* fmt, ...)
+```
+Appends a formatted string to `*dst`.  
+
+* If over capacity, `*dst` gets **reallocated**.
+* reallocation reserves 2x the needed memory.
+
+Return code :  
+* `rc = 0`   on error.  
+* `rc >= 0`  on success, as new length.  
+
+```C
+stx_t foo = stx_new(32);
+stx_append_fmt (&foo, "%s has %d apples", "Mary", 10);
+stx_dbg(foo);
+// cap:32 len:18 data:'Mary has 10 apples'
+```
+
+
+### stx_append_fmt_strict   
+```C
+long long stx_append_fmt_strict (stx_t dst, const char* fmt, ...)
 ```
 Appends a formatted string to `dst`, in place.  
 
@@ -287,7 +308,7 @@ Appends a formatted string to `dst`, in place.
 * Nothing done if input exceeds remaining space.
 
 Return code :  
-* `rc >= 0`  on success, as increase in length.  
+* `rc >= 0`  on success, as new length.  
 * `rc < 0`   on potential truncation, as needed capacity.  
 * `rc = 0`   on error.  
 
@@ -297,8 +318,6 @@ stx_append_fmt (foo, "%s has %d apples", "Mary", 10);
 stx_dbg(foo);
 // cap:32 len:18 data:'Mary has 10 apples'
 ```
-
-
 
 
 ### stx_split

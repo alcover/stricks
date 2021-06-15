@@ -50,7 +50,7 @@ int main()
         stx_t user = columns[1];
         stx_t text = columns[2];
 
-        int appended = stx_append_fmt_strict(page, POST_FMT, user, votes, text); 
+        int appended = stx_append_fmt_strict (page, POST_FMT, user, votes, text); 
         
        	// post too long, so flush page, reset and re-add post 
         if (appended <= 0) {

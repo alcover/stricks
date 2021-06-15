@@ -1,6 +1,17 @@
 #ifndef ALCO_UTIL_H
 #define ALCO_UTIL_H
 
+#define min(a,b) ({ \
+__typeof__ (a) _a = (a); \
+__typeof__ (b) _b = (b); \
+_a > _b ? _b : _a; })
+
+#define max(a,b) ({ \
+__typeof__ (a) _a = (a); \
+__typeof__ (b) _b = (b); \
+_a > _b ? _a : _b; })
+
+
 #define GETBIT(n,i) (((n) >> (i)) & 1)
 #define SETBIT(n,i) (n) |= (1 << (i))
 

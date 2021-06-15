@@ -17,9 +17,17 @@
 
 int main() {
 
-stx_t s = stx_from("foo");
+{ 
+stx_t s = stx_from("abc"); 
+stx_append(&s, "def", 3); //-> 6 
 stx_dbg(s); 
+}
 
+{
+stx_t foo = stx_new(32);
+stx_append_fmt (&foo, "%s has %d apples", "Mary", 10);
+stx_dbg(foo);	
+}
 
 return 0; 
 }

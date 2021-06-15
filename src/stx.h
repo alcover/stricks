@@ -1,5 +1,5 @@
 /*
-Stricks v0.4.0
+Stricks v0.4.2
 Copyright (C) 2021 - Francois Alcover <francois[@]alcover.fr>
 NO WARRANTY EXPRESSED OR IMPLIED.
 */
@@ -70,7 +70,6 @@ size_t	stx_spc (stx_t s); // remaining space
 bool	stx_equal (stx_t a, stx_t b);
 bool	stx_check (stx_t s);
 void 	stx_dbg (stx_t s);
-void 	stx_dbg_all (stx_t s);
 
 // Shorthands
 #define stx_cat		stx_append
