@@ -503,7 +503,7 @@ void split_pat (splitter fun, const char* word, const char* sep, size_t n)
     stx_list_free(list);
 }
 
-void split_unit(splitter fun)
+void u_split(splitter fun)
 {
     split_cust (fun, "",                 SEP,    1,  (char*[]){""});
     split_cust (fun, FOO,                SEP,    1,  (char*[]){FOO});
@@ -511,6 +511,7 @@ void split_unit(splitter fun)
     split_cust (fun, FOO SEP BAR,        SEP,    2,  (char*[]){FOO,BAR});
     split_cust (fun, FOO SEP BAR SEP,    SEP,    3,  (char*[]){FOO,BAR,""});
     split_cust (fun, FOO SEP SEP BAR,    SEP,    3,  (char*[]){FOO,"",BAR});
+    split_cust (fun, "baaaad",    "aa",    3,  (char*[]){"b","","d"});
 
     split_pat (fun, FOO, SEP, 6);
     split_pat (fun, FOO, SEP, STX_STACK_MAX-1);
@@ -523,8 +524,8 @@ void split_unit(splitter fun)
     // split_pat (fun, FOO, SEP, 20000000);
 }
 
-void split() {split_unit(stx_split_len);}
-// void split_fast() {split_unit(stx_split_fast);}
+void split() {u_split(stx_split_len);}
+// void split_fast() {u_split(stx_split_fast);}
 
 //==============================================================================
 

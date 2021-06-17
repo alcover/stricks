@@ -531,7 +531,7 @@ stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, s
 {
     size_t cnt = 0; 
     stx_t* ret = NULL;
-
+    
     if (!src||!seplen) goto fin;
 
     stx_t  list_local[STX_STACK_MAX]; 
@@ -541,33 +541,36 @@ stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, s
     size_t listmax = STX_STACK_MAX;
 
     const char *beg = src;
-    const char *end = strstr(src,sep);//todo strnstr
+    const char *end = src;
 
-    while (end) {
+    while (end = strstr(end, sep)) {
 
-        if (cnt >= listmax-2) { // -1 : for last part
+        if (cnt >= listmax-2) { // -2 : last part + sentinel
 
             if (list == list_local) {
 
                 list_reloc = list_pool;
                 listmax = STX_POOL_MAX;
 
-            } else if (list == list_pool) {
+            } else {
 
-                // LOG("dyn");
                 listmax *= 2;
-                list_dyn = STX_MALLOC (listmax * sizeof(stx_t)); 
-                if (!list_dyn) {cnt = 0; goto fin;}
-                list_reloc = list_dyn;
-            
-            } else { // list_dyn
-                listmax *= 2;
-                list = STX_REALLOC (list, listmax * sizeof(stx_t)); 
-                if (!list) {cnt = 0; goto fin;}
+                const size_t newsz = listmax * sizeof(stx_t);
+
+                if (list == list_pool) {
+
+                    list_dyn = STX_MALLOC (newsz); 
+                    if (!list_dyn) {cnt = 0; goto fin;}
+                    list_reloc = list_dyn;
+                
+                } else { 
+
+                    list = STX_REALLOC (list, newsz); 
+                    if (!list) {cnt = 0; goto fin;}
+                }
             }
         
             if (list_reloc) {
-                // LOG("reloc");
                 memcpy (list_reloc, list, cnt * sizeof(stx_t));
                 list = list_reloc;
                 list_reloc = NULL;
@@ -578,10 +581,10 @@ stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, s
 
         end += seplen;
         beg = end;
-        end = strstr(end,sep);
     };
     
-    list[cnt++] = from(beg, (src+srclen)-beg);
+    // part after last sep
+    list[cnt++] = from(beg, src+srclen-beg);
 
     if (list == list_dyn) {
         ret = list;  
