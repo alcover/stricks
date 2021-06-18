@@ -527,18 +527,19 @@ stx_adjust (stx_t s)
 
 
 stx_t*
-stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, size_t* outcnt)
+stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, int* outcnt)
 {
-    size_t cnt = 0; 
+    int cnt = 0; 
     stx_t* ret = NULL;
     
-    if (!src||!seplen) goto fin;
+    // rem: strstr(s,"") == s
+    if (!seplen) goto fin;
 
     stx_t  list_local[STX_STACK_MAX]; 
     stx_t *list_dyn = NULL;
     stx_t *list_reloc = NULL;
     stx_t *list = list_local;
-    size_t listmax = STX_STACK_MAX;
+    int listmax = STX_STACK_MAX;
 
     const char *beg = src;
     const char *end = src;
@@ -603,7 +604,7 @@ stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, s
 
 
 stx_t*
-stx_split (const char* src, const char* sep, size_t* outcnt)
+stx_split (const char* src, const char* sep, int* outcnt)
 {
     const size_t srclen = sep ? strlen(src) : 0;
     const size_t seplen = sep ? strlen(sep) : 0;
@@ -616,6 +617,42 @@ stx_list_free (const stx_t *list)
     const stx_t *l = list;
     stx_t s;
 
-    while ((s = *l++)) stx_free(s); //bug unit
-    free((void*)list); //not for pool !
+    while ((s = *l++)) stx_free(s); 
+    free((void*)list);
 }
+
+
+stx_t 
+stx_join_len (stx_t *list, int count, const char* sep, size_t seplen)
+{
+    size_t totlen = 0;
+
+    for (int i = 0; i < count; ++i)
+        totlen += getlen(list[i]);
+    totlen += (count-1)*seplen;
+    
+    stx_t ret = new(totlen);
+    char* cur = (char*)ret;
+
+    for (int i = 0; i < count-1; ++i) {
+        stx_t elt = list[i];
+        const size_t eltlen = getlen(elt);
+        memcpy(cur, elt, eltlen);
+        cur += eltlen;
+        memcpy(cur, sep, seplen);
+        cur += seplen;
+    }
+
+    stx_t last = list[count-1];
+    memcpy(cur, last, getlen(last));
+
+    setlen(ret, totlen);
+    return ret;
+}
+
+
+stx_t stx_join (stx_t *list, int count, const char* sep)
+{
+    return stx_join_len(list, count, sep, strlen(sep));
+}
+

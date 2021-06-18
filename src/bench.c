@@ -45,7 +45,7 @@ const size_t foolen = 3;
 // const size_t seplen = 1;
 
 // smth to assert to avoid optimized-out runs
-size_t counter = 0; 
+int counter = 0; 
 //==============================================================================
 
 void STX_from (const char* src, size_t srclen, int n)
@@ -114,17 +114,17 @@ void append()
 
 void STX_split (const char* src, size_t srclen, const char* sep, size_t seplen)
 {
-    size_t cnt = 0;
-    stx_t* list = stx_split_len(src, srclen, sep, seplen, &cnt);
-    stx_list_free(list);
+    int cnt = 0;
+    stx_t* parts = stx_split_len(src, srclen, sep, seplen, &cnt);
+    stx_list_free(parts);
     ++counter;
 }
 
 void SDS_split (const char* src, size_t srclen, const char* sep, size_t seplen)
 {
-    size_t cnt = 0;
-    sds* list = sdssplitlen(src, srclen, sep, seplen, (int*)(&cnt));
-    sdsfreesplitres(list,cnt);
+    int cnt = 0;
+    sds* parts = sdssplitlen(src, srclen, sep, seplen, (int*)(&cnt));
+    sdsfreesplitres(parts,cnt);
     ++counter;
 }
 
@@ -148,13 +148,56 @@ void split()
 }
 
 //==============================================================================
+
+void STX_split_join (const char* src, size_t srclen, const char* sep, size_t seplen)
+{
+    int cnt = 0;
+    stx_t* parts = stx_split_len (src, srclen, sep, seplen, &cnt);
+    stx_t back = stx_join_len (parts, cnt, sep, seplen);
+    assert (!strcmp(src,back));
+    stx_free(back);
+    stx_list_free(parts);
+    ++counter;
+}
+
+void SDS_split_join (const char* src, size_t srclen, const char* sep, size_t seplen)
+{
+    int cnt = 0;
+    sds* parts = sdssplitlen (src, srclen, sep, seplen, (int*)(&cnt));
+    sds back = sdsjoinsds (parts, cnt, sep, seplen);
+    assert (!strcmp(src,back));
+    sdsfree(back);
+    sdsfreesplitres(parts,cnt);
+    ++counter;
+}
+
+void split_join()
+{
+	RUNBEG("split+join")
+	FORV (n, 50, 5000, 5000000)
+		int iter = 5000000/n+1;
+	    const char* src = str_repeat(PAT,n);
+	    const size_t srclen = strlen(src);
+	    const size_t seplen = strlen(SEP);
+
+		LOG("%d parts :", n);
+		bench ("SDS", 		SDS_split_join, (src,srclen,SEP,seplen), iter);  
+		bench ("Stricks", 	STX_split_join, (src,srclen,SEP,seplen), iter);  
+		// bench ("Stricks-fast", 	STX_split_fast, nc, iter);  
+	FORVEND
+	RUNEND
+}
+
+
+//==============================================================================
 int main () 
 {
 	LOG("Time in clock ticks");
 
 	new_free();
 	append();
-	split();
+	// split();
+	split_join();
 
 	return 0;
 }

@@ -31,19 +31,19 @@ int main()
     }
     
     const size_t db_len = stx_len(db);
-    size_t nrows;
+    int nrows;
     stx_t *rows = stx_split(db, "\n", &nrows);
     
     LOG ("Welcome to Stricky's forum !");
     LOG ("db : %zu bytes, %d rows\n", db_len, nrows-1);
 
-    for (size_t i = 0; i < nrows; ++i)
+    for (int i = 0; i < nrows; ++i)
     {
         stx_t row = rows[i];
 
         if (!stx_len(row)) break;
         
-        size_t ncols; 
+        int ncols; 
         stx_t *columns = stx_split(row, ",", &ncols);
         
         int votes = atoi(columns[0]);

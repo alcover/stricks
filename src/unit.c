@@ -10,7 +10,7 @@
 #include "util.c"
 //==============================================================================
 
-#define ASSERT_INT(a, b) { if ((a)!=(b)) { \
+#define ASSERT_INT(a, b) { if ( ((int)(a)) != ((int)(b)) ) { \
 fprintf(stderr, "%d: %s:%d != %s:%d\n", __LINE__, #a, (int)a, #b, (int)b); \
 exit(1);}}
 
@@ -28,6 +28,9 @@ exit(1);}}
 
 #define CAP 100  
 #define SMALL_MAX 255
+#define FOO "foo"
+#define BAR "bar"
+#define SEP "|"
 
 const char* foo = "foo";
 const size_t foolen = 3;
@@ -453,16 +456,12 @@ void story()
 
 //==============================================================================
 
-#define FOO "foo"
-#define BAR "bar"
-#define SEP "|"
-
-typedef stx_t*(*splitter)(const char*, size_t, const char*, size_t, size_t*);
+typedef stx_t*(*splitter)(const char*, size_t, const char*, size_t, int*);
 
 void split_cust(
-splitter fun, const char* str, const char* sep, size_t expc, char* exps[])
+splitter fun, const char* str, const char* sep, int expc, char* exps[])
 {
-    size_t cnt = 0;
+    int cnt = 0;
     stx_t* list = fun(str, strlen(str), sep, strlen(sep), &cnt);
     stx_t* l = list;
     stx_t s;
@@ -486,13 +485,13 @@ void split_pat (splitter fun, const char* word, const char* sep, size_t n)
     const char* pat = str_cat(word,sep); //LOGVS(pat);
     const char* txt = str_repeat(pat,n); //LOGVS(txt);
     const size_t wordlen = strlen(word);
-    size_t cnt = 0;
+    int cnt = 0;
 
     stx_t* list = fun(txt, strlen(txt), sep, strlen(sep), &cnt);
 
     ASSERT_INT(cnt,n+1);
     
-    for (size_t i = 0; i < cnt-1; ++i) {
+    for (int i = 0; i < cnt-1; ++i) {
         stx_t s = list[i];
         assert_props (s, wordlen, wordlen, word);
     }
@@ -505,7 +504,7 @@ void split_pat (splitter fun, const char* word, const char* sep, size_t n)
 
 void u_split(splitter fun)
 {
-    split_cust (fun, "",                 SEP,    1,  (char*[]){""});
+    // split_cust (fun, foo,                 "",     0,  (char*[]){""});
     split_cust (fun, FOO,                SEP,    1,  (char*[]){FOO});
     split_cust (fun, FOO SEP,            SEP,    2,  (char*[]){FOO,""});
     split_cust (fun, FOO SEP BAR,        SEP,    2,  (char*[]){FOO,BAR});
@@ -526,6 +525,32 @@ void u_split(splitter fun)
 
 void split() {u_split(stx_split_len);}
 // void split_fast() {u_split(stx_split_fast);}
+
+//==============================================================================
+
+#define u_splitjoin(src,sep,seplen) { \
+    int count; \
+    stx_t* list = stx_split(src, sep, &count); \
+    stx_t joined = stx_join_len(list, count, sep, seplen); \
+    ASSERT_STR(joined,src); \
+    assert(stx_len(joined) == strlen(src)); \
+    stx_list_free(list);\
+}
+
+void join() 
+{ 
+    // u_splitjoin (NULL, NULL);
+    // u_splitjoin ("", NULL);
+    // u_splitjoin ("", "");
+    // u_splitjoin (FOO, "");  
+    u_splitjoin (FOO, SEP, 1); 
+    u_splitjoin (FOO SEP FOO, SEP, 1);
+    u_splitjoin (SEP FOO SEP FOO, SEP, 1);
+    u_splitjoin (FOO SEP FOO SEP, SEP, 1);
+    u_splitjoin (FOO SEP SEP FOO, SEP, 1);
+
+    u_splitjoin (FOO BAR FOO, BAR, barlen);
+}
 
 //==============================================================================
 
@@ -560,6 +585,8 @@ int main()
     run(split);
     // run(split_fast);
     
+    run(join);
+
     run(story);
 
     printf ("unit tests OK\n");

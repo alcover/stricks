@@ -10,12 +10,12 @@ lib		= bin/stx
 unit 	= bin/unit
 bench 	= bin/bench
 example	= bin/example
-sandbox = bin/sandbox
+try		= bin/try
 sds 	= bin/sds
 
 .PHONY: all check clean bench
 
-all: $(lib) $(unit) $(bench) $(example) $(sandbox)
+all: $(lib) $(unit) $(bench) $(example) $(try)
 	
 $(lib): src/stx.c src/stx.h src/util.c
 	@ echo $@
@@ -29,7 +29,7 @@ $(sds): sds/sds.c sds/sds.h
 $(unit): src/unit.c $(lib) src/util.c
 	@ echo $@
 	@ $(CP) $< $(lib) -o $@
-# 	@ ./$(unit)
+	@ ./$(unit)
 
 $(bench): src/bench.c $(lib) $(sds)
 	@ echo $@
@@ -39,7 +39,7 @@ $(example): src/example.c $(lib)
 	@ echo $@
 	@ $(LINK)
 
-$(sandbox): src/sandbox.c $(lib)
+$(try): src/try.c $(lib)
 	@ echo $@
 	@ $(LINK) 
 
