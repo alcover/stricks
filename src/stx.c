@@ -233,7 +233,7 @@ append_fmt (stx_t* dst, bool strict, const char* fmt, va_list args)
     if (totlen > cap) {
 
         if (strict) {
-            STX_WARN("stx: append_fmt strict: would truncate\n");
+            STX_WARN("append_fmt: would truncate");
             return -totlen;            
         }
          

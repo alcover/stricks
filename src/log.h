@@ -13,6 +13,6 @@
 		#define LOGVI(id) 	((void)0)
 	#endif
 
-	#define ERR(args...) fprintf(stderr,args)
+	#define ERR(args...) fprintf(stderr, "%s:%d %s\n", __FILE__, __LINE__, args)
 
 #endif

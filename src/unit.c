@@ -142,19 +142,19 @@ void u_free(stx_t s)
     assert (!stx_spc(s));
 }
 
+// use-after-free + double-free
 void free_() 
 {
-    stx_t s;
-
-    s = stx_new(foobarlen);
-    // use after free
-    u_free(s);
-    // double free
-    u_free(s);
-    
-    s = stx_from(foo);
-    u_free(s);
-    u_free(s);
+    {
+        stx_t s = stx_new(foolen);
+        u_free(s);
+        u_free(s);
+    }
+    {
+        stx_t s = stx_from(foo);
+        u_free(s);
+        u_free(s);
+    }
 }
 
 //==============================================================================
