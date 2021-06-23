@@ -111,16 +111,17 @@ split and join
 [stx_from_len](#stx_from_len)  
 [stx_dup](#stx_dup)  
 [stx_split](#stx_split)  
-[stx_join](#stx_join)
+[stx_join](#stx_join)  
 [stx_join_len](#stx_join_len)
 
 #### append
 [stx_append](#stx_append)  
 [stx_append_strict](#stx_append_strict)  
 [stx_append_fmt](#stx_append_fmt)  
+[stx_append_fmt_strict](#stx_append_fmt_strict)  
 
 #### adjust/dispose
-[stx_free](#stx_free)
+[stx_free](#stx_free)  
 [stx_list_free](#stx_list_free)  
 [stx_reset](#stx_reset)  
 [stx_resize](#stx_resize)  
@@ -260,8 +261,8 @@ stx_t stx_join_len (stx_t *list, int count, const char* sep, size_t seplen);
 ```
 
 
-
 ### stx_append
+stx_cat
   
 ```C
 size_t stx_append (stx_t* dst, const void* src, size_t srclen)
@@ -284,6 +285,7 @@ stx_dbg(s);
 
 
 ### stx_append_strict
+stx_cats
  
 ```C
 long long stx_append_strict (stx_t dst, const char* src, size_t srclen)
@@ -307,6 +309,7 @@ printf(s); // "abc"
 
 
 ### stx_append_fmt   
+stx_catf
 ```C
 size_t stx_append_fmt (stx_t* dst, const char* fmt, ...)
 ```
@@ -328,6 +331,7 @@ stx_dbg(foo);
 
 
 ### stx_append_fmt_strict   
+stx_catfs
 ```C
 long long stx_append_fmt_strict (stx_t dst, const char* fmt, ...)
 ```
