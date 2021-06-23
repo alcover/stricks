@@ -344,118 +344,6 @@ dbg (stx_t s)
 
 //==== PUBLIC ==================================================================
 
-stx_t stx_new (size_t cap) {
-    return new(cap);
-}
-
-stx_t stx_from (const char* src) {
-    return from(src, strlen(src));
-}
-
-stx_t stx_from_len (const void* src, size_t srclen) {
-    return from(src, srclen);
-}
-
-stx_t stx_dup (stx_t src) {
-    return dup(src);
-}
-
-void stx_free (stx_t s) {
-    STX_FREE(HEAD(s));
-}
-
-size_t stx_cap (stx_t s) {
-    return hgetcap(HEAD(s), TYPE(s));
-}
-
-size_t stx_len (stx_t s) {
-    return getlen(s);
-}
-
-size_t stx_spc (stx_t s) {
-    return getspc((s));
-}
-
-int
-stx_resize (stx_t *ps, size_t newcap) {
-    return resize (ps, newcap);
-}
-
-void 
-stx_reset (stx_t s)
-{
-    setlen(s,0);
-    *((char*)s) = 0;
-} 
-
-size_t stx_append (stx_t* dst, const void* src, size_t srclen) {
-    return append (dst, src, srclen, 0);        
-}
-
-long long stx_append_strict (stx_t dst, const void* src, size_t srclen) {
-    return append (&dst, src, srclen, 1);       
-}
-
-size_t 
-stx_append_fmt (stx_t* dst, const char* fmt, ...)
-{
-    va_list args;
-    va_start(args, fmt);
-    long long ret = append_fmt (dst, 0, fmt, args);
-    va_end(args);
-
-    return ret;
-} 
-
-long long 
-stx_append_fmt_strict (stx_t dst, const char* fmt, ...)
-{
-    va_list args;
-    va_start(args, fmt);
-    long long ret = append_fmt (&dst, 1, fmt, args);
-    va_end(args);
-
-    return ret;
-} 
-
-// nb: memcmp(,,0) == 0
-int 
-stx_equal (stx_t a, stx_t b) 
-{
-    const size_t lena = getlen(a);
-    const size_t lenb = getlen(b);
-    return (lena == lenb) && !memcmp(a, b, lena);
-}
-
-
-// todo new fit type ?
-void 
-stx_trim (stx_t s)
-{
-    const char* front = s;
-    while (isspace(*front)) ++front;
-
-    const char* end = s + getlen(s);
-    while (end > front && isspace(*(end-1))) --end;
-    
-    const size_t newlen = end-front;
-    
-    if (front > s) {
-        memmove((void*)s, front, newlen);
-    }
-    
-    ((char*)s)[newlen] = 0;
-    setlen(s,newlen);
-}
-
-
-void
-stx_adjust (stx_t s)
-{
-    setlen(s,strlen(s));
-}
-
-
 stx_t*
 stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, int* outcnt)
 {
@@ -533,14 +421,6 @@ stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, i
 }
 
 
-stx_t*
-stx_split (const char* src, const char* sep, int* outcnt)
-{
-    const size_t srclen = sep ? strlen(src) : 0;
-    const size_t seplen = sep ? strlen(sep) : 0;
-    return stx_split_len (src, srclen, sep, seplen, outcnt);
-}
-
 void
 stx_list_free (const stx_t *list)
 {
@@ -580,9 +460,117 @@ stx_join_len (stx_t *list, int count, const char* sep, size_t seplen)
 }
 
 
-stx_t stx_join (stx_t *list, int count, const char* sep)
+// todo new fit type ?
+void 
+stx_trim (stx_t s)
 {
+    const char* front = s;
+    while (isspace(*front)) ++front;
+
+    const char* end = s + getlen(s);
+    while (end > front && isspace(*(end-1))) --end;
+    
+    const size_t newlen = end-front;
+    
+    if (front > s) {
+        memmove((void*)s, front, newlen);
+    }
+    
+    ((char*)s)[newlen] = 0;
+    setlen(s,newlen);
+}
+
+
+// nb: memcmp(,,0) == 0
+int 
+stx_equal (stx_t a, stx_t b) 
+{
+    const size_t lena = getlen(a);
+    const size_t lenb = getlen(b);
+    return (lena == lenb) && !memcmp(a, b, lena);
+}
+
+//==== WRAPPERS & CONVENIENCES =====
+
+stx_t stx_new (size_t cap) {
+    return new(cap);
+}
+
+stx_t stx_from (const char* src) {
+    return from(src, strlen(src));
+}
+
+stx_t stx_from_len (const void* src, size_t srclen) {
+    return from(src, srclen);
+}
+
+stx_t stx_dup (stx_t src) {
+    return dup(src);
+}
+
+void stx_free (stx_t s) {
+    STX_FREE(HEAD(s));
+}
+
+int stx_resize (stx_t *ps, size_t newcap) {
+    return resize (ps, newcap);
+}
+
+size_t stx_append (stx_t* dst, const void* src, size_t srclen) {
+    return append (dst, src, srclen, 0);        
+}
+
+long long stx_append_strict (stx_t dst, const void* src, size_t srclen) {
+    return append (&dst, src, srclen, 1);       
+}
+
+size_t stx_append_fmt (stx_t* dst, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    long long ret = append_fmt (dst, 0, fmt, args);
+    va_end(args);
+    return ret;
+} 
+
+long long stx_append_fmt_strict (stx_t dst, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    long long ret = append_fmt (&dst, 1, fmt, args);
+    va_end(args);
+    return ret;
+} 
+
+stx_t* stx_split (const char* src, const char* sep, int* outcnt) {
+    const size_t srclen = sep ? strlen(src) : 0;
+    const size_t seplen = sep ? strlen(sep) : 0;
+    return stx_split_len (src, srclen, sep, seplen, outcnt);
+}
+
+stx_t stx_join (stx_t *list, int count, const char* sep) {
     return stx_join_len (list, count, sep, strlen(sep));
 }
 
-void stx_dbg (stx_t s) {dbg(s);}
+size_t stx_cap (stx_t s) {
+    return hgetcap(HEAD(s), TYPE(s));
+}
+
+size_t stx_len (stx_t s) {
+    return getlen(s);
+}
+
+size_t stx_spc (stx_t s) {
+    return getspc((s));
+}
+
+void stx_reset (stx_t s) {
+    setlen(s,0);
+    *((char*)s) = 0;
+} 
+
+void stx_adjust (stx_t s) {
+    setlen(s,strlen(s));
+}
+
+void stx_dbg (stx_t s) {
+    dbg(s);
+}
