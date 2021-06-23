@@ -27,19 +27,6 @@ now part of [Redis](https://github.com/redis/redis).
 Being really a `char*`, a *strick* can be passed to `<string.h>` functions.  
 
 
-# Security
-
-Stricks aims at limiting memory faults through the API :  
-
-* all methods check for a valid header.  
-* if invalid, no action is taken and a *falsy* value is returned.  
-* typedef `const char*` forces the user to cast before out-of-API writing.
-
-(See *[stx_free](#stx_free)*)
-
-
-
-
 
 ## Usage
 
@@ -80,46 +67,34 @@ Stricks is seemingly faster than standalone [SDS](https://github.com/antirez/sds
 
 `make && make bench`
 
-On my old trusty Core i3 :
+On rusty Core i3 :
 ```
-Time in clock ticks
-
-new+free
+init and free
 ---------------
-10 parts :
-      SDS  0.83
-  Stricks  0.62
-100 parts :
-      SDS  7.93
-  Stricks  6.15
-1000 parts :
-      SDS  104.70
-  Stricks  99.40
+8 bytes strings :
+      SDS  551 ms
+  Stricks  436 ms
+256 bytes strings :
+      SDS  822 ms
+  Stricks  795 ms
 
 append
 ---------------
-10 parts :
-      SDS  0.72
-  Stricks  0.42
-100 parts :
-      SDS  3.79
-  Stricks  2.66
-1000 parts :
-      SDS  32.80
-  Stricks  21.30
+8 bytes strings :
+      SDS  679 ms
+  Stricks  447 ms
+256 bytes strings :
+      SDS  449 ms
+  Stricks  172 ms
 
-split
+split and join
 ---------------
-50 parts :
-      SDS  3.34
-  Stricks  1.57
-5000 parts :
-      SDS  304.33
-  Stricks  154.67
-5000000 parts :
-      SDS  430519.00
-  Stricks  177649.00
-
+8 bytes strings :
+      SDS  577 ms
+  Stricks  227 ms
+256 bytes strings :
+      SDS  700 ms
+  Stricks  79 ms
 ```
 
 
@@ -135,36 +110,29 @@ split
 [stx_from](#stx_from)  
 [stx_from_len](#stx_from_len)  
 [stx_dup](#stx_dup)  
+[stx_split](#stx_split)  
+[stx_join](#stx_join)
+[stx_join_len](#stx_join_len)
 
 #### append
 [stx_append](#stx_append)  
 [stx_append_strict](#stx_append_strict)  
 [stx_append_fmt](#stx_append_fmt)  
 
-#### split
-[stx_split](#stx_split)  
-[stx_list_free](#stx_list_free)  
-
-#### join
-[stx_join](#stx_join)
-[stx_join_len](#stx_join_len)
-
-
 #### adjust/dispose
-[stx_free](#stx_free)  
+[stx_free](#stx_free)
+[stx_list_free](#stx_list_free)  
 [stx_reset](#stx_reset)  
 [stx_resize](#stx_resize)  
-[stx_trim](#stx_trim)  
 [stx_adjust](#stx_adjust)  
+[stx_trim](#stx_trim)  
 
 #### assess
 [stx_cap](#stx_cap)  
 [stx_len](#stx_len)  
 [stx_spc](#stx_spc)  
 [stx_equal](#stx_equal)  
-[stx_check](#stx_check)  
 [stx_dbg](#stx_dbg)  
-
 
 
 Custom allocators can be defined with  
@@ -186,7 +154,6 @@ stx_dbg(s);
 //cap:10 len:0 data:""
 ```
 
-
 ### stx_from
 Create a new *strick* by copying string `src`.  
 ```C
@@ -200,13 +167,12 @@ stx_dbg(s);
 
 ```
 
-
 ### stx_from_len
 
 Create a new *strick* by copying `len` bytes from `src`.  
 
 ```C
-stx_t stx_from_len (const void* src, size_t len)
+stx_t stx_from_len (const void* src, size_t srclen)
 ```
 
 Beware that this function is **binary** : exactly `len` bytes will be copied, NUL bytes included. If you need the `stx.len` property to reflect its C-string length, use `stx_adjust` on the result.
@@ -216,7 +182,6 @@ stx_t s = stx_from_len("Hello!", 4);
 stx_dbg(s); 
 // cap:4 len:4 data:'Hell'
 ```
-
 
 ### stx_dup
 Create a duplicate strick of `src`.  
@@ -235,12 +200,71 @@ stx_dbg(dup);
 ```
 
 
+### stx_split
+Splits a *strick* or string on separator `sep` into an array of *stricks*. 
+```C
+stx_t*  
+stx_split (const char* src, const char* sep, int* outcnt);
+```
+`*outcnt` receives the resulting array length.
+
+```C
+stx_t s = stx_from("foo, bar");
+unsigned int cnt = 0;
+
+stx_t* list = stx_split(s, ", ", &cnt);
+
+for (int i = 0; i < cnt; ++i) {
+    stx_dbg(list[i]);
+}
+
+// cap:3 len:3 data:'foo'
+// cap:3 len:3 data:'bar'
+
+```
+Or comfortably using the list sentinel
+
+```C
+while (part = *list++) {
+    stx_dbg(part);
+}
+```
+
+### stx_split_len
+Core split method. Arbitrary lengths are passed by caller. 
+```C
+stx_t*  
+stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, int* outcnt)
+```
+
+
+### stx_join
+Join the stricks in list *list* of len *count* using separator *sep* into a new strick.
+```C
+stx_t stx_join (stx_t *list, int count, const char* sep);
+```
+```C
+char* src = "foo,bar";
+char* sep = ",";
+int count = 0;
+stx_t* parts = stx_split(src, sep, &count);
+stx_t joined = stx_join (parts, count, sep);
+printf(joined);
+// foo,bar
+```
+
+### stx_join_len
+Same with known separator length.
+```C
+stx_t stx_join_len (stx_t *list, int count, const char* sep, size_t seplen);
+```
+
 
 
 ### stx_append
   
 ```C
-size_t stx_append (stx_t* dst, const void* src, size_t len)
+size_t stx_append (stx_t* dst, const void* src, size_t srclen)
 ```
 Appends `len` bytes from `src` to `*dst`.
 
@@ -262,7 +286,7 @@ stx_dbg(s);
 ### stx_append_strict
  
 ```C
-long long stx_append_strict (stx_t dst, const char* src, size_t len)
+long long stx_append_strict (stx_t dst, const char* src, size_t srclen)
 ```
 Appends `len` bytes from `src` to `dst`, in place.  
 * **No reallocation**.
@@ -325,71 +349,6 @@ stx_dbg(foo);
 ```
 
 
-### stx_split
-Splits a *strick* or string on separator `sep` into an array of *stricks*. 
-```C
-stx_t*  
-stx_split (const char* src, const char* sep, int* outcnt);
-```
-`*outcnt` receives the resulting array length.
-
-```C
-stx_t s = stx_from("foo, bar");
-unsigned int cnt = 0;
-
-stx_t* list = stx_split(s, ", ", &cnt);
-
-for (int i = 0; i < cnt; ++i) {
-    stx_dbg(list[i]);
-}
-
-// cap:3 len:3 data:'foo'
-// cap:3 len:3 data:'bar'
-
-```
-Or comfortably using the list sentinel
-
-```C
-while (part = *list++) {
-    stx_dbg(part);
-}
-```
-
-### stx_split_len
-Core split method. Arbitrary lengths are passed by caller. 
-```C
-stx_t*  
-stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, int* outcnt)
-```
-
-### stx_list_free
-Releases a list of parts generated by *stx_split*.
-```C
-void stx_list_free (const stx_t* list)
-```
-
-
-### stx_join
-Join the stricks in list *list* of len *count* using separator *sep* into a new strick.
-```C
-stx_t stx_join (stx_t *list, int count, const char* sep);
-```
-```C
-char* src = "foo,bar";
-char* sep = ",";
-int count = 0;
-stx_t* parts = stx_split(src, sep, &count);
-stx_t joined = stx_join (parts, count, sep);
-printf(joined);
-// foo,bar
-```
-
-### stx_join_len
-Same with known separator length.
-```C
-stx_t stx_join_len (stx_t *list, int count, const char* sep, size_t seplen);
-```
-
 
 
 
@@ -399,31 +358,17 @@ Releases the enclosing memory block.
 void stx_free (stx_t s)
 ```
 
-:cake: **Security** :  
-Once freed, no *use-after-free* or *double-free* should be possible through the API :  
-
 ```C
-stx_t s = stx_new(16);
-stx_append_strict(s, "foo");
+stx_t s = stx_from("foo");
 stx_free(s);
-
-// Use-after-free
-stx_append_strict(s, "bar");
-// No action. Returns 0.  
-printf("%zu\n", stx_len(s));
-// 0
-
-// Double-free
-stx_free(s);
-// No action.
 ```
 
-:wrench: **How it works**  
-On first call, `stx_free(s)` zeroes-out the header, erasing the `canary`.  
-All subsequent API calls, seeing no canary, do nothing.
+### stx_list_free
+Releases a list of parts generated by *stx_split*.
+```C
+void stx_list_free (const stx_t* list)
+```
 
-:heavy_exclamation_mark: **Caveat**  
-Your compiler may optimize-out the canary deletion, seeing the block is to be freed..
 
 ### stx_reset    
 Sets length to zero.  
@@ -441,7 +386,7 @@ stx_dbg(s);
 ### stx_resize    
 Change capacity.  
 ```C
-bool stx_resize (stx_t *pstx, size_t newcap)
+int stx_resize (stx_t *pstx, size_t newcap)
 ```
 * If increased, the passed **reference** may get updated.
 * If lowered below length, data gets truncated.  
@@ -456,6 +401,26 @@ stx_dbg(s);
 // cap:6 len:6 data:'foobar'
 ```
 
+### stx_adjust
+Sets `len` straight in case data was modified from outside.
+```C
+void stx_adjust (stx_t s)
+```
+
+```C
+stx_t s = stx_from("foobar");
+
+// out-of-API modification
+((char*)s)[3] = '\0';
+stx_dbg(s);
+// cap:6 len:6 data:'foo'  WRONG LEN!
+
+stx_adjust(s);
+stx_dbg(s);
+// cap:6 len:3 data:'foo'  FAITHFUL
+```
+
+
 ### stx_trim
 Removes white space, left and right.
 ```C
@@ -463,14 +428,12 @@ void stx_trim (stx_t s)
 ```
 Capacity remains the same.
 
-
-### stx_adjust
-Sets `len` straight in case data was modified from outside.
 ```C
-void stx_adjust (stx_t s)
+stx_t s = stx_from(" foo ");
+stx_trim(s);
+stx_dbg(s);
+// cap:5 len:3 data:'foo'
 ```
-
-
 
 
 
@@ -489,17 +452,10 @@ Remaining space.
 ### stx_equal    
 Compares `a` and `b`'s data string.  
 ```C
-bool stx_equal (stx_t a, stx_t b)
+int stx_equal (stx_t a, stx_t b)
 ```
 * Capacities are not compared.
 * Faster than `memcmp` since stored lengths are compared first.
-
-
-### stx_check    
-Check if *s* has a valid header.  
-```C
-bool stx_check (stx_t s)
-```
 
 ### stx_dbg    
 Utility printing the state of `s`.  

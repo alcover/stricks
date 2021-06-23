@@ -26,7 +26,7 @@ int main()
 	stx_t page = stx_new(PAGE_SZ);
 
 	if (!db) {
-        ERR ("Failed to load db file %s\n", DB_PATH);
+        ERR ("Failed to load db file " DB_PATH);
         exit(EXIT_FAILURE);
     }
     

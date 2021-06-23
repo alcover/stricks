@@ -29,7 +29,7 @@ $(sds): sds/sds.c sds/sds.h
 $(unit): src/unit.c $(lib) src/util.c
 	@ echo $@
 	@ $(CP) $< $(lib) -o $@
-	@ ./$(unit)
+# 	@ ./$(unit)
 
 $(bench): src/bench.c $(lib) $(sds)
 	@ echo $@
