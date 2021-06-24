@@ -43,11 +43,11 @@ stx_t	stx_new (size_t cap);
 stx_t	stx_from (const char* src);
 stx_t	stx_from_len (const void* src, size_t srclen);
 stx_t	stx_dup (stx_t src);
-stx_t 	stx_join (stx_t *list, int count, const char* sep);
-stx_t 	stx_join_len (stx_t *list, int count, const char* sep, size_t seplen);
 stx_t*	stx_split (const char* src, const char* sep, int* outcnt);
 stx_t*	stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, int* outcnt);
 // stx_t*	stx_split_fast (const char* src, size_t srclen, const char* sep, int* outcnt);
+stx_t 	stx_join (stx_t *list, int count, const char* sep);
+stx_t 	stx_join_len (stx_t *list, int count, const char* sep, size_t seplen);
 
 // append
 size_t		stx_append (stx_t* dst, const void* src, size_t srclen);
