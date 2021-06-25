@@ -84,8 +84,8 @@ static inline void hset##prop (const void* head, Type type, size_t val) { \
     } \
 } 
 
-head_setter(cap)
-head_setter(len)
+head_setter(cap) // hsetcap 
+head_setter(len) // hsetlen
 
 static inline Head4
 hgetdims (const void* head, Type type)
@@ -169,7 +169,9 @@ from (const char* src, size_t srclen)
 }
 
 
-static inline int 
+// optim: return head for reuse
+// todo: pass type ?
+static inline const void* 
 resize (stx_t *ps, size_t newcap)
 {    
     stx_t s = *ps;
@@ -178,7 +180,7 @@ resize (stx_t *ps, size_t newcap)
     const void* head = HEADT(s, type);
     Head4 dims = hgetdims(head,type);
 
-    if (newcap == dims.cap) return 1;
+    if (newcap == dims.cap) return head;
     // newcap < cap : optim realloc only if < 1/2 ?
 
     const Type newtype = TYPE_FOR(newcap);
@@ -190,7 +192,7 @@ resize (stx_t *ps, size_t newcap)
 
     if (!newhead) {
         ERR ("stx_resize: realloc");
-        return 0;
+        return NULL;
     }
     
     char* newdata = DATA(newhead, newtype);
@@ -205,44 +207,15 @@ resize (stx_t *ps, size_t newcap)
         free((void*)head);
     }
     
-    hsetdims(newhead, newtype, (Head4){newcap, newlen});
+    hsetdims (newhead, newtype, (Head4){newcap, newlen});
     newdata[newcap] = 0;
     
     *ps = newdata;
-    return 1;
+    return newhead;
 }
 
 
-static long long 
-append (stx_t* dst, const void* src, size_t srclen, int strict) 
-{
-    stx_t s = *dst;
-    
-    const Type type = TYPE(s);
-    void* head = HEADT(s, type);
-    const Head4 dims = hgetdims(head,type);
-    const size_t totlen = dims.len + srclen;
-
-    if (totlen > dims.cap) {  
-        // Would truncate, return needed capacity
-        if (strict) return -totlen;
-
-        if (!resize(&s, totlen*2)) {
-            ERR("resize failed");
-            return 0;
-        }
-        *dst = s;
-    }
-
-    char* end = (char*)s + dims.len;
-    memcpy (end, src, srclen);
-    end[srclen] = 0;
-    setlen(s, totlen);
-
-    return totlen;        
-}
-
-
+// todo: same optims as append + build small fmt on stack
 static long long 
 append_fmt (stx_t* dst, int strict, const char* fmt, va_list args) 
 {
@@ -343,6 +316,65 @@ dbg (stx_t s)
 }
 
 //==== PUBLIC ==================================================================
+
+
+size_t 
+stx_append (stx_t* dst, const void* src, size_t srclen) 
+{
+    stx_t s = *dst;
+    
+    const Type type = TYPE(s);
+    void* head = HEADT(s, type);
+    const Head4 dims = hgetdims(head,type);
+    const size_t totlen = dims.len + srclen;
+
+    if (totlen > dims.cap) {  
+
+        const size_t newcap = totlen*2;
+        head = (void*)resize (&s, newcap);
+        // type = TYPE_FOR(newcap); // slower than TYPE(s)
+        
+        if (!head) {
+            ERR("resize failed");
+            return 0;
+        }
+
+        *dst = s;
+    }
+
+    char* end = (char*)s + dims.len;
+    memcpy (end, src, srclen);
+    end[srclen] = 0;
+
+    hsetlen (head, TYPE(s), totlen);
+
+    return totlen;              
+}
+
+
+long long 
+stx_append_strict (stx_t dst, const void* src, size_t srclen) 
+{
+    const Type type = TYPE(dst);
+    void* head = HEADT(dst, type);
+    const Head4 dims = hgetdims(head,type);
+    const size_t totlen = dims.len + srclen;
+
+    // Would truncate, return needed capacity
+    if (totlen > dims.cap) {  
+        return -totlen;
+    }
+
+    char* end = (char*)dst + dims.len;
+    memcpy (end, src, srclen);
+    end[srclen] = 0;
+
+    hsetlen (head, type, totlen);
+
+    return totlen;        
+
+}
+
 
 stx_t*
 stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, int* outcnt)
@@ -513,15 +545,7 @@ void stx_free (stx_t s) {
 }
 
 int stx_resize (stx_t *ps, size_t newcap) {
-    return resize (ps, newcap);
-}
-
-size_t stx_append (stx_t* dst, const void* src, size_t srclen) {
-    return append (dst, src, srclen, 0);        
-}
-
-long long stx_append_strict (stx_t dst, const void* src, size_t srclen) {
-    return append (&dst, src, srclen, 1);       
+    return !!resize (ps, newcap);
 }
 
 size_t stx_append_fmt (stx_t* dst, const char* fmt, ...) {

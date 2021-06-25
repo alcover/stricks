@@ -9,7 +9,7 @@ Augmented strings for C
 
 *Stricks* make C strings easy and fast.  
 Managing bounds, storage and reallocations is done for you,  
-without resorting to a dedicated datatype.
+without forcing a dedicated structured type on you.
 
 # Principle
 
@@ -94,11 +94,6 @@ split and join
       SDS  700 ms
   Stricks  79 ms
 ```
-
-
-
-
-
 
 
 # API
