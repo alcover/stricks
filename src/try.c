@@ -15,20 +15,20 @@
 
 int main() {
 
-	stx_t s = stx_from("foobar");
-	((char*)s)[3] = '\0';
-	stx_dbg(s);
-	stx_adjust(s);
-	stx_dbg(s);
+	// stx_t s = stx_from("foobar");
+	// ((char*)s)[3] = '\0';
+	// stx_dbg(s);
+	// stx_adjust(s);
+	// stx_dbg(s);
 
-	// {
-	// char* src = "foo,bar";
-	// char* sep = ",";
-	// int count = 0;
-	// stx_t* parts = stx_split(src, sep, &count);
-	// stx_t joined = stx_join (parts, count, sep);
-	// stx_dbg(joined);
-	// }
+	{
+	char* src = "foo,bar";
+	char* sep = ",";
+	int count = 0;
+	stx_t* parts = stx_split(src, sep, &count);
+	stx_t joined = stx_join (parts, count, sep);
+	stx_dbg(joined);
+	}
 
 	// { 
 	// stx_t s = stx_from("abc"); 

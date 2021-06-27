@@ -61,7 +61,7 @@ When the next post would truncate, the buffer is flushed.
 
 ## Speed
 
-`make && make bench`  
+`make && make bench` (may use 1GB+ RAM)  
 
 *Stricks* are sometimes much faster than [SDS](https://github.com/antirez/sds).  
 

@@ -49,9 +49,6 @@ typedef enum {
 #define DATAOFF(type) (HEADSZ(type) + offsetof(Attr,data))
 #define TOTSZ(type,cap) (DATAOFF(type) + cap + 1)
 
-static_assert (DATAOFF(TYPE1)==3, "bad DATAOFF");
-static_assert (DATAOFF(TYPE4)==9, "bad DATAOFF");
-
 #define FLAGS(s) (((uint8_t*)(s))[-1]) // safer attr->flags ?
 #define TYPE(s) (FLAGS(s) & TYPE_MASK)
 #define HEAD(s) ((char*)(s) - DATAOFF(TYPE(s)))
@@ -60,9 +57,16 @@ static_assert (DATAOFF(TYPE4)==9, "bad DATAOFF");
 
 #define TYPE_FOR(len) ((len <= SMALL_MAX) ? TYPE1 : TYPE4)
 
+#define LIST_LOCAL_MAX (STX_LOCAL_MEM/sizeof(stx_t))
+#define LIST_POOL_MAX (STX_POOL_MEM/sizeof(stx_t))
+
+static_assert (DATAOFF(TYPE1)==3, "bad DATAOFF");
+static_assert (DATAOFF(TYPE4)==9, "bad DATAOFF");
+
 //==== PRIVATE =================================================================
 
-stx_t list_pool[STX_POOL_MAX] = {NULL};
+stx_t list_pool[LIST_POOL_MAX] = {NULL};
+char mem_pool[STX_POOL_MEM] = {0};
 
 #define head_getter(prop) \
 static inline size_t hget##prop (const void* head, Type type) { \
@@ -215,57 +219,6 @@ resize (stx_t *ps, size_t newcap)
 }
 
 
-// todo: same optims as append + build small fmt on stack
-static long long 
-append_fmt (stx_t* dst, int strict, const char* fmt, va_list args) 
-{
-    if (!dst) return 0;
-    
-    stx_t s = *dst;
-
-    va_list argscpy;
-    va_copy(argscpy, args);
-    
-    errno = 0;
-    const int inlen = vsnprintf(NULL, 0, fmt, args);
-
-    if (inlen < 0) {
-        perror("vsnprintf");
-        return 0;
-    }
-
-    Type type = TYPE(s);
-    void* head = HEADT(s, type);
-    const Head4 dims = hgetdims(head,type);
-    const size_t totlen = dims.len + inlen;
-     
-    // Truncation
-    if (totlen > dims.cap) {
-
-        if (strict) {
-            STX_WARN("append_fmt: would truncate");
-            return -totlen;            
-        }
-         
-        if (!resize(dst, totlen)) {
-            ERR("resize failed");
-            return 0;
-        }
-        s = *dst;
-        type = TYPE_FOR(totlen);
-        head = HEADT(s, type);
-    } 
-
-    vsprintf((char*)s+dims.len, fmt, argscpy);
-    va_end(argscpy);
-
-    // Update length
-    hsetlen(head, type, totlen);
-
-    return totlen;           
-}
-
-
 // copy only up to current length
 static stx_t
 dup (stx_t src)
@@ -286,37 +239,7 @@ dup (stx_t src)
     return ret;
 }
 
-
-static void
-dbg (stx_t s)
-{
-    #define DBGFMT "cap:%zu len:%zu flags:%x data:\"%s\"\n"
-    #define DBGARG (size_t)(h->cap), (size_t)(h->len), FLAGS(s), s
-
-    const void* head = HEAD(s);
-    const Type type = TYPE(s);
-
-    switch(type){
-        case TYPE4: {
-            Head4* h = (Head4*)head;
-            printf(DBGFMT, DBGARG);
-            break;
-        }
-        case TYPE1: {
-            Head1* h = (Head1*)head;
-            printf(DBGFMT, DBGARG);
-            break;
-        }
-        default: ERR("stx_dbg: unknown type");
-    }
-
-    #undef DBGFMT
-    #undef DBGARG
-    fflush(stdout);
-}
-
 //==== PUBLIC ==================================================================
-
 
 size_t 
 stx_append (stx_t* dst, const void* src, size_t srclen) 
@@ -376,6 +299,95 @@ stx_append_strict (stx_t dst, const void* src, size_t srclen)
 }
 
 
+// render to pool mem
+size_t 
+stx_append_fmt (stx_t* dst, const char* fmt, ...) 
+{
+    stx_t s = *dst;
+
+    const Type type = TYPE(s);
+    const void* head = HEADT(s,type);
+    const Head4 dims = hgetdims(head,type);
+
+    va_list args, argscpy;
+    va_start(args, fmt);  
+    va_copy(argscpy, args); 
+
+    errno = 0;
+    const int fmtlen = vsnprintf (mem_pool, sizeof(mem_pool), fmt, args);
+    va_end(args);
+
+    if (fmtlen < 0) {
+        perror("vsnprintf");
+        return 0;
+    }
+    
+    const size_t totlen = dims.len + fmtlen;
+
+    if (totlen > dims.cap) {
+        if (!resize(dst, 2*totlen)) {
+            ERR("resize failed");
+            return 0;
+        }
+        s = *dst;
+    } 
+    
+    char* end = (char*)s + dims.len;
+
+    if (fmtlen < (int)sizeof(mem_pool)) {
+        memcpy (end, mem_pool, fmtlen);    
+    } else {
+        // pool was too small
+        vsprintf (end, fmt, argscpy);
+        va_end(argscpy);
+    }
+
+    end[fmtlen] = 0;
+
+    setlen(s, totlen);
+
+    return totlen;           
+}
+
+
+long long 
+stx_append_fmt_strict (stx_t dst, const char* fmt, ...) 
+{
+    const Type type = TYPE(dst);
+    const void* head = HEADT(dst, type);
+    const Head4 dims = hgetdims(head,type);
+    const size_t spc = dims.cap - dims.len;
+    char* end = (char*)dst + dims.len;
+
+    if (!spc) return 0; // old len ?
+
+    va_list args;
+    va_start(args, fmt);   
+    errno = 0;
+    const int fmtlen = vsnprintf (end, spc+1, fmt, args);
+    va_end(args);
+
+    if (fmtlen < 0) {
+        perror("vsnprintf");
+        *end = 0; //undo
+        return 0;
+    }
+
+    const size_t totlen = dims.len + fmtlen;
+     
+    // Truncation
+    if (totlen > dims.cap) {
+        *end = 0; //undo
+        return -totlen;            
+    }     
+
+    // Update length
+    hsetlen(head, type, totlen);
+
+    return totlen;           
+}
+
+
 stx_t*
 stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, int* outcnt)
 {
@@ -385,11 +397,11 @@ stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, i
     // rem: strstr(s,"") == s
     if (!seplen) goto fin;
 
-    stx_t  list_local[STX_STACK_MAX]; 
+    stx_t  list_local[LIST_LOCAL_MAX]; 
     stx_t *list_dyn = NULL;
     stx_t *list_reloc = NULL;
     stx_t *list = list_local;
-    int listmax = STX_STACK_MAX;
+    int listmax = LIST_LOCAL_MAX;
 
     const char *beg = src;
     const char *end = src;
@@ -401,7 +413,7 @@ stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, i
             if (list == list_local) {
 
                 list_reloc = list_pool;
-                listmax = STX_POOL_MAX;
+                listmax = LIST_POOL_MAX;
 
             } else {
 
@@ -522,6 +534,34 @@ stx_equal (stx_t a, stx_t b)
     return (lena == lenb) && !memcmp(a, b, lena);
 }
 
+
+void
+stx_dbg (stx_t s)
+{
+    #define DBGFMT "cap:%zu len:%zu flags:%x data:\"%s\"\n"
+    #define DBGARG (size_t)(h->cap), (size_t)(h->len), FLAGS(s), s
+
+    const void* head = HEAD(s);
+    const Type type = TYPE(s);
+
+    switch(type){
+        case TYPE4: {
+            Head4* h = (Head4*)head;
+            printf(DBGFMT, DBGARG);
+            break;
+        }
+        case TYPE1: {
+            Head1* h = (Head1*)head;
+            printf(DBGFMT, DBGARG);
+            break;
+        }
+        default: ERR("stx_dbg: unknown type");
+    }
+
+    #undef DBGFMT
+    #undef DBGARG
+    fflush(stdout);
+}
 //==== WRAPPERS & CONVENIENCES =====
 
 stx_t stx_new (size_t cap) {
@@ -547,22 +587,6 @@ void stx_free (stx_t s) {
 int stx_resize (stx_t *ps, size_t newcap) {
     return !!resize (ps, newcap);
 }
-
-size_t stx_append_fmt (stx_t* dst, const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    long long ret = append_fmt (dst, 0, fmt, args);
-    va_end(args);
-    return ret;
-} 
-
-long long stx_append_fmt_strict (stx_t dst, const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    long long ret = append_fmt (&dst, 1, fmt, args);
-    va_end(args);
-    return ret;
-} 
 
 stx_t* stx_split (const char* src, const char* sep, int* outcnt) {
     const size_t srclen = sep ? strlen(src) : 0;
@@ -593,8 +617,4 @@ void stx_reset (stx_t s) {
 
 void stx_adjust (stx_t s) {
     setlen(s,strlen(s));
-}
-
-void stx_dbg (stx_t s) {
-    dbg(s);
 }

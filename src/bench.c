@@ -77,8 +77,9 @@ void new_free()
 	SECTION("init and free")
 	u_new (W8,  10000000);
 	// u_new(W64,5000000);
-	u_new (W256, 5000000);
+	u_new (W256, 4000000);
 }
+
 //==============================================================================
 
 void STX_append (const char* src, uint n)
@@ -123,6 +124,48 @@ void append()
 
 //==============================================================================
 
+#define FMT "%s %s %d"
+#define ARG "foo", "bar", 10
+
+// #define FMT "%s %s %d", "foo", "bar", 10
+
+void STX_append_fmt (uint iter)
+{
+    const int fmtlen = snprintf(NULL, 0, FMT, ARG);
+
+	stx_t s = stx_from("");
+	
+	BENCHBEG
+		FOR(i,iter) stx_append_fmt (&s, FMT, ARG);
+	BENCHEND("Stricks")
+	
+	assert (stx_len(s)==fmtlen*iter);
+	stx_free(s);
+}
+
+
+void SDS_append_fmt (uint iter)
+{
+	const int fmtlen = snprintf(NULL, 0, FMT, ARG);
+
+	sds s = sdsnew("");
+
+	BENCHBEG
+		FOR(i,iter) s = sdscatprintf (s, FMT, ARG);
+	BENCHEND("SDS")
+	
+	assert (sdslen(s)==fmtlen*iter);
+	sdsfree(s);
+}
+
+void append_fmt()
+{
+	SECTION("append format")
+	SDS_append_fmt (5000000);
+	STX_append_fmt (5000000);
+}
+//==============================================================================
+
 void STX_split_join (const char* src, const char* sep)
 {
 	const size_t srclen = strlen(src);
@@ -164,6 +207,8 @@ void u_join (const char* word, const char* sep, uint n)
 	SDS_split_join (src, sep); 
 	STX_split_join (src, sep);
 
+	free((void*)src);
+	free((void*)pat);
 }
 
 void split_join()
@@ -179,7 +224,7 @@ int main ()
 {
 	new_free();
 	append();
-	// split();
+	append_fmt();
 	split_join();
 
 	return 0;

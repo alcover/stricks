@@ -254,30 +254,32 @@ void append_strict()
 
 void append_fmt()
 {
-    #define INIT(cap, fmt, src, exprc, expcap, explen, expdata) { \
+    #define INIT(cap, fmt, src, exprc, explen, expdata) { \
         stx_t s = stx_new(cap);                            \
         int rc = stx_append_fmt (&s, fmt, src);                 \
-        ASSERT_INT (rc, (int)exprc);                               \
-        assert_props (s, expcap, explen, expdata); \
+        ASSERT_INT (rc, (int)exprc); \
+        ASSERT_INT (stx_len(s), (int)explen); \
+        ASSERT_STR (s, expdata); \
         stx_free(s);                                        \
     }
 
-    INIT (foolen,   "%s", "",   0,      foolen,     0,      "");
-    INIT (foolen,   "%s", foo,  foolen, foolen,     foolen, foo);
-    INIT (foolen+1, "%s", foo,  foolen, foolen+1,   foolen, foo);
-    INIT (foolen-1, "%s", foo,  foolen, foolen,     foolen, foo);
+    INIT (foolen,   "%s", "",   0,        0,      "");
+    INIT (foolen,   "%s", foo,  foolen,   foolen, foo);
+    INIT (foolen+1, "%s", foo,  foolen,  foolen, foo);
+    INIT (foolen-1, "%s", foo,  foolen,   foolen, foo);
     #undef INIT
 
-    #define MORE(cap, fmt, src, exprc, expcap, explen, expdata) { \
+    #define MORE(cap, fmt, src, exprc, explen, expdata) { \
         stx_t s = stx_new(cap);                            \
         stx_append_strict (s, foo, foolen);                 \
         int rc = stx_append_fmt (&s, fmt, src);                 \
         ASSERT_INT (rc, (int)exprc);                               \
-        assert_props (s, cap, explen, expdata); \
+        ASSERT_INT (stx_len(s), (int)explen); \
+        ASSERT_STR (s, expdata); \
         stx_free(s);                                        \
     }
 
-    MORE (foobarlen, "%s", bar, foobarlen, foobarlen, foobarlen, foobar);
+    MORE (foobarlen, "%s", bar, foobarlen, foobarlen, foobar);
     #undef MORE
 }
 
@@ -371,6 +373,9 @@ void split_pat (splitter fun, const char* word, const char* sep, size_t n)
     stx_list_free(list);
 }
 
+#define LIST_LOCAL_MAX (STX_LOCAL_MEM/sizeof(stx_t))
+#define LIST_POOL_MAX (STX_POOL_MEM/sizeof(stx_t))
+
 void u_split(splitter fun)
 {
     // split_cust (fun, foo,                 "",     0,  (char*[]){""});
@@ -381,13 +386,13 @@ void u_split(splitter fun)
     split_cust (fun, FOO SEP SEP BAR,    SEP,    3,  (char*[]){FOO,"",BAR});
     split_cust (fun, "baaaad",    "aa",    3,  (char*[]){"b","","d"});
 
-    split_pat (fun, FOO, SEP, 6);
-    split_pat (fun, FOO, SEP, STX_STACK_MAX-1);
-    split_pat (fun, FOO, SEP, STX_STACK_MAX);
-    split_pat (fun, FOO, SEP, STX_STACK_MAX+1);
-    split_pat (fun, FOO, SEP, STX_POOL_MAX-1);
-    split_pat (fun, FOO, SEP, STX_POOL_MAX);
-    split_pat (fun, FOO, SEP, STX_POOL_MAX+1);
+    split_pat (fun, FOO, SEP, LIST_LOCAL_MAX-1);
+    split_pat (fun, FOO, SEP, LIST_LOCAL_MAX);
+    split_pat (fun, FOO, SEP, LIST_LOCAL_MAX+1);
+
+    split_pat (fun, FOO, SEP, LIST_POOL_MAX-1);
+    split_pat (fun, FOO, SEP, LIST_POOL_MAX);
+    split_pat (fun, FOO, SEP, LIST_POOL_MAX+1);
 
     // split_pat (fun, FOO, SEP, 20000000);
 }
@@ -514,21 +519,15 @@ int main()
     run(dup);
     run(join);
     run(split);
-    // run(split_fast);
-
     run(append);
     run(append_strict);
     run(append_fmt);
     run(append_fmt_strict);
-    
-    // run(free_);
     run(resize);
     run(reset);
     run(adjust);
     run(trim);
-    
     run(equal);
-    
     run(story);
 
     printf ("unit tests OK\n");

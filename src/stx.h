@@ -32,9 +32,8 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 	#define STX_WARN(args...) ((void)0)
 #endif
 
-// caches for stx lists
-#define STX_STACK_MAX 256
-#define STX_POOL_MAX 4*1024*1024
+#define STX_LOCAL_MEM 1024
+#define STX_POOL_MEM 32*1024*1024
 
 typedef const char* stx_t;
 
