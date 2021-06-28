@@ -66,7 +66,6 @@ static_assert (DATAOFF(TYPE4)==9, "bad DATAOFF");
 //==== PRIVATE =================================================================
 
 stx_t list_pool[LIST_POOL_MAX] = {NULL};
-char mem_pool[STX_POOL_MEM] = {0};
 
 #define head_getter(prop) \
 static inline size_t hget##prop (const void* head, Type type) { \
@@ -175,6 +174,7 @@ from (const char* src, size_t srclen)
 
 // optim: return head for reuse
 // todo: pass type ?
+// todo: specialized grow()
 static inline const void* 
 resize (stx_t *ps, size_t newcap)
 {    
@@ -308,13 +308,14 @@ stx_append_fmt (stx_t* dst, const char* fmt, ...)
     const Type type = TYPE(s);
     const void* head = HEADT(s,type);
     const Head4 dims = hgetdims(head,type);
+    char local[STX_LOCAL_MEM];
 
     va_list args, argscpy;
     va_start(args, fmt);  
     va_copy(argscpy, args); 
 
     errno = 0;
-    const int fmtlen = vsnprintf (mem_pool, sizeof(mem_pool), fmt, args);
+    const int fmtlen = vsnprintf (local, sizeof(local), fmt, args);
     va_end(args);
 
     if (fmtlen < 0) {
@@ -334,16 +335,14 @@ stx_append_fmt (stx_t* dst, const char* fmt, ...)
     
     char* end = (char*)s + dims.len;
 
-    if (fmtlen < (int)sizeof(mem_pool)) {
-        memcpy (end, mem_pool, fmtlen);    
+    if (fmtlen < STX_LOCAL_MEM) {
+        memcpy (end, local, fmtlen);
     } else {
-        // pool was too small
         vsprintf (end, fmt, argscpy);
         va_end(argscpy);
     }
 
     end[fmtlen] = 0;
-
     setlen(s, totlen);
 
     return totlen;           

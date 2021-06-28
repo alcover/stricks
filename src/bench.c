@@ -127,8 +127,6 @@ void append()
 #define FMT "%s %s %d"
 #define ARG "foo", "bar", 10
 
-// #define FMT "%s %s %d", "foo", "bar", 10
-
 void STX_append_fmt (uint iter)
 {
     const int fmtlen = snprintf(NULL, 0, FMT, ARG);
