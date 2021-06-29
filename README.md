@@ -8,8 +8,8 @@ Augmented strings for C
 :orange_book: [API](#API)
 
 *Stricks* make C strings easy and fast.  
-Managing bounds, storage and reallocations is done for you,  
-without forcing a dedicated structured type on you.
+Managing bounds, storage and reallocations is automated,  
+without forcing a structured type on the user.
 
 # Principle
 
@@ -18,7 +18,7 @@ typedef const char* stx_t;
 ```  
 
 A *strick* is just a normal `char*`, and can be passed to `<string.h>` functions.  
-Its metadata, invisible to the user, are set in a prefix header :    
+Metadata, invisible to the user, are set in a prefix header :    
 
 ![schema](assets/schema.png)
 
@@ -63,36 +63,42 @@ When the next post would truncate, the buffer is flushed.
 
 `make && make bench` (may use 1GB+ RAM)  
 
-*Stricks* are sometimes much faster than [SDS](https://github.com/antirez/sds).  
+*Stricks* is (much) faster than [SDS](https://github.com/antirez/sds).  
 
 On Intel Core i3 :
 ```
 init and free
 ---------------
 8 bytes strings :
-      SDS  551 ms
-  Stricks  436 ms
+      SDS  568 ms
+  Stricks  445 ms
 256 bytes strings :
-      SDS  822 ms
-  Stricks  795 ms
+      SDS  667 ms
+  Stricks  654 ms
 
 append
 ---------------
 8 bytes strings :
-      SDS  679 ms
-  Stricks  447 ms
+      SDS  643 ms
+  Stricks  372 ms
 256 bytes strings :
       SDS  449 ms
-  Stricks  172 ms
+  Stricks  171 ms
+
+append format
+---------------
+      SDS  832 ms
+  Stricks  795 ms
 
 split and join
 ---------------
 8 bytes strings :
-      SDS  577 ms
-  Stricks  227 ms
+      SDS  580 ms
+  Stricks  224 ms
 256 bytes strings :
-      SDS  700 ms
-  Stricks  79 ms
+      SDS  714 ms
+  Stricks  75 ms
+
 ```
 
 
