@@ -49,7 +49,7 @@ typedef enum {
 #define DATAOFF(type) (HEADSZ(type) + offsetof(Attr,data))
 #define TOTSZ(type,cap) (DATAOFF(type) + cap + 1)
 
-#define FLAGS(s) (((uint8_t*)(s))[-1]) // safer attr->flags ?
+#define FLAGS(s) (((uint8_t*)(s))[-1])
 #define TYPE(s) (FLAGS(s) & TYPE_MASK)
 #define HEAD(s) ((char*)(s) - DATAOFF(TYPE(s)))
 #define HEADT(s,type) ((char*)(s) - DATAOFF(type))
@@ -172,9 +172,6 @@ from (const char* src, size_t srclen)
 }
 
 
-// optim: return head for reuse
-// todo: pass type ?
-// todo: specialized grow()
 static inline const void* 
 resize (stx_t *ps, size_t newcap)
 {    
@@ -219,6 +216,49 @@ resize (stx_t *ps, size_t newcap)
 }
 
 
+// resize increase only, to new location
+static inline void* 
+grow (stx_t *ps, size_t newcap, const void* head, Type type, Head4 dims)
+{    
+    stx_t s = *ps;
+    void* newhead;
+    char* newdata;
+
+    #define RELOC(t) \
+        newhead = STX_REALLOC((void*)head, TOTSZ(TYPE##t, newcap)); \
+        if (!newhead) {ERR("realloc"); return NULL;} \
+        ((Head##t*)newhead)->cap = newcap; \
+        newdata = DATA(newhead, TYPE##t)
+
+    // TYPE4 -> TYPE4
+    if (type == TYPE4) {
+        RELOC(4); goto fin;
+    }
+
+    // TYPE1 -> TYPE1
+    if (newcap <= SMALL_MAX) {
+        RELOC(1); goto fin;
+    }
+
+    #undef RELOC
+
+    // TYPE1 -> TYPE4
+    newhead = STX_REALLOC((void*)head, TOTSZ(TYPE4, newcap));// todo err
+    newdata = DATA(newhead, TYPE4);
+    memmove (newdata, DATA(newhead, TYPE1), dims.len+1); 
+    *((Head4*)newhead) = (Head4){newcap, dims.len};
+    // ((Head4*)newhead)->len = dims.len;
+    FLAGS(newdata) = TYPE4;
+
+    fin:
+    newdata[newcap] = 0;
+    *ps = newdata;
+
+    return newhead;
+}
+
+
+
 // copy only up to current length
 static stx_t
 dup (stx_t src)
@@ -253,22 +293,20 @@ stx_append (stx_t* dst, const void* src, size_t srclen)
 
     if (totlen > dims.cap) {  
 
-        const size_t newcap = totlen*2;
-        head = (void*)resize (&s, newcap);
-        // type = TYPE_FOR(newcap); // slower than TYPE(s)
+        head = grow (dst, totlen*2, head, type, dims);
         
         if (!head) {
-            ERR("resize failed");
+            ERR("resize");
             return 0;
         }
 
-        *dst = s;
+        s = *dst;
     }
 
     char* end = (char*)s + dims.len;
+
     memcpy (end, src, srclen);
     end[srclen] = 0;
-
     hsetlen (head, TYPE(s), totlen);
 
     return totlen;              
@@ -299,7 +337,7 @@ stx_append_strict (stx_t dst, const void* src, size_t srclen)
 }
 
 
-// render to pool mem
+
 size_t 
 stx_append_fmt (stx_t* dst, const char* fmt, ...) 
 {
@@ -319,17 +357,19 @@ stx_append_fmt (stx_t* dst, const char* fmt, ...)
     va_end(args);
 
     if (fmtlen < 0) {
-        perror("vsnprintf");
+        perror("vsnprintf"); 
         return 0;
     }
     
     const size_t totlen = dims.len + fmtlen;
 
     if (totlen > dims.cap) {
-        if (!resize(dst, 2*totlen)) {
-            ERR("resize failed");
+
+        if (!grow(dst, 2*totlen, head, type, dims)) {
+            ERR("resize");
             return 0;
         }
+        
         s = *dst;
     } 
     
