@@ -1,5 +1,5 @@
 /*
-Stricks v0.5.0
+Stricks v0.5.1
 Copyright (C) 2021 - Francois Alcover <francois[@]alcover.fr>
 NO WARRANTY EXPRESSED OR IMPLIED.
 */
@@ -8,7 +8,6 @@ NO WARRANTY EXPRESSED OR IMPLIED.
 #define STRICKS_H
 
 #include <string.h>
-// #include <stdbool.h>
 
 #ifndef STX_MALLOC
 #define STX_MALLOC malloc
@@ -44,7 +43,6 @@ stx_t	stx_from_len (const void* src, size_t srclen);
 stx_t	stx_dup (stx_t src);
 stx_t*	stx_split (const char* src, const char* sep, int* outcnt);
 stx_t*	stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, int* outcnt);
-// stx_t*	stx_split_fast (const char* src, size_t srclen, const char* sep, int* outcnt);
 stx_t 	stx_join (stx_t *list, int count, const char* sep);
 stx_t 	stx_join_len (stx_t *list, int count, const char* sep, size_t seplen);
 

@@ -1,5 +1,5 @@
 /*
-Stricks v0.5.0
+Stricks v0.5.1
 Copyright (C) 2021 - Francois Alcover <francois[@]alcover.fr>
 NO WARRANTY EXPRESSED OR IMPLIED.
 */
@@ -41,8 +41,6 @@ typedef enum {
     TYPE4 = 3  // (int)log2(sizeof(Head4))
 } Type;
 
-#define TYPE_BITS 2
-#define TYPE_MASK ((1<<TYPE_BITS)-1)
 #define SMALL_MAX 255 // max TYPE1 capacity
 
 #define HEADSZ(type) (1<<type)
@@ -50,7 +48,7 @@ typedef enum {
 #define TOTSZ(type,cap) (DATAOFF(type) + cap + 1)
 
 #define FLAGS(s) (((uint8_t*)(s))[-1])
-#define TYPE(s) (FLAGS(s) & TYPE_MASK)
+#define TYPE(s) (FLAGS(s))
 #define HEAD(s) ((char*)(s) - DATAOFF(TYPE(s)))
 #define HEADT(s,type) ((char*)(s) - DATAOFF(type))
 #define DATA(head,type) ((char*)(head) + DATAOFF(type))
@@ -204,7 +202,7 @@ resize (stx_t *ps, size_t newcap)
         memcpy (newdata, s, newlen); 
         newdata[newlen] = 0; //nec?
         // update type
-        FLAGS(newdata) = /*(FLAGS(newdata) & ~TYPE_MASK) |*/ newtype;
+        FLAGS(newdata) = newtype;
         free((void*)head);
     }
     
@@ -243,11 +241,16 @@ grow (stx_t *ps, size_t newcap, const void* head, Type type, Head4 dims)
     #undef RELOC
 
     // TYPE1 -> TYPE4
-    newhead = STX_REALLOC((void*)head, TOTSZ(TYPE4, newcap));// todo err
+    newhead = STX_REALLOC((void*)head, TOTSZ(TYPE4, newcap));
+    if (!newhead) {ERR("realloc"); return NULL;}
+
     newdata = DATA(newhead, TYPE4);
     memmove (newdata, DATA(newhead, TYPE1), dims.len+1); 
-    *((Head4*)newhead) = (Head4){newcap, dims.len};
-    // ((Head4*)newhead)->len = dims.len;
+
+    // *((Head4*)newhead) = (Head4){newcap, dims.len}; // not faster ?
+    ((Head4*)newhead)->cap = dims.cap;
+    ((Head4*)newhead)->len = dims.len;
+
     FLAGS(newdata) = TYPE4;
 
     fin:
