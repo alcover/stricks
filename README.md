@@ -236,7 +236,7 @@ stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, i
 
 
 ### stx_join
-Join the *stricks* `list` of length *count* using separator *sep* into a new *strick*.
+Join the *stricks* `list` of length `count` using separator `sep` into a new *strick*.
 ```C
 stx_t stx_join (stx_t *list, int count, const char* sep);
 ```

@@ -1,3 +1,9 @@
+/*
+Stricks - Managed C strings library
+Copyright (C) 2021 - Francois Alcover <francois[@]alcover.fr>
+NO WARRANTY EXPRESSED OR IMPLIED
+*/
+
 #ifndef ALCO_UTIL_H
 #define ALCO_UTIL_H
 
@@ -14,25 +20,6 @@ _a > _b ? _a : _b; })
 
 #define GETBIT(n,i) (((n) >> (i)) & 1)
 #define SETBIT(n,i) (n) |= (1 << (i))
-
-static inline size_t
-str_count (const char *str, const char* tok/*, size_t* outlen*/)
-{
-    if (!str||!tok) return 0;
-
-    const size_t toklen = strlen(tok);
-    if (!toklen) return 0;
-    
-    size_t cnt = 0;
-    const char* s = str; 
-    
-    while ((s = strstr(s,tok))) {
-        ++cnt;
-        s += toklen;
-    }
-
-    return cnt;
-}
 
 
 // draft

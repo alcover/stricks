@@ -1,3 +1,9 @@
+/*
+Stricks - Managed C strings library
+Copyright (C) 2021 - Francois Alcover <francois[@]alcover.fr>
+NO WARRANTY EXPRESSED OR IMPLIED
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
