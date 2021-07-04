@@ -47,31 +47,27 @@ typedef struct {
     char data[]; 
 } Attr;
 
-// comptime math : not with clang ?
 typedef enum {
-    TYPE1 = 1, // (int)log2(sizeof(Head1)), 
-    TYPE4 = 3  // (int)log2(sizeof(Head4))
+    TYPE1 = 1,
+    TYPE4 = 3 
 } Type;
 
 #define SMALL_MAX 255 // max TYPE1 capacity
+#define TYPE_FOR(len) ((len <= SMALL_MAX) ? TYPE1 : TYPE4)
 
-#define HEADSZ(type) (1<<type)
-#define DATAOFF(type) (HEADSZ(type) + offsetof(Attr,data))
-#define TOTSZ(type,cap) (DATAOFF(type) + cap + 1)
+#define DATAOFF(type) ((1<<type) + offsetof(Attr,data))
+static_assert (DATAOFF(TYPE1)==3, "bad TYPE1 DATAOFF");
+static_assert (DATAOFF(TYPE4)==9, "bad TYPE4 DATAOFF");
 
-#define FLAGS(s) (((uint8_t*)(s))[-1])
-#define TYPE(s) (FLAGS(s))
 #define HEAD(s) ((char*)(s) - DATAOFF(TYPE(s)))
 #define HEADT(s,type) ((char*)(s) - DATAOFF(type))
 #define DATA(head,type) ((char*)(head) + DATAOFF(type))
-
-#define TYPE_FOR(len) ((len <= SMALL_MAX) ? TYPE1 : TYPE4)
+#define BLOCKSZ(type,cap) (DATAOFF(type) + cap + 1)
+#define FLAGS(s) (((uint8_t*)(s))[-1])
+#define TYPE(s) (FLAGS(s))
 
 #define LIST_LOCAL_MAX (STX_LOCAL_MEM/sizeof(stx_t))
 #define LIST_POOL_MAX (STX_POOL_MEM/sizeof(stx_t))
-
-static_assert (DATAOFF(TYPE1)==3, "bad DATAOFF");
-static_assert (DATAOFF(TYPE4)==9, "bad DATAOFF");
 
 //==== PRIVATE =================================================================
 
@@ -85,8 +81,8 @@ static inline size_t hget##prop (const void* head, Type type) { \
     }  \
 }
 
-head_getter(cap)
-head_getter(len)
+head_getter(cap) // hgetcap()
+head_getter(len) // hgetlen()
 
 #define head_setter(prop) \
 static inline void hset##prop (const void* head, Type type, size_t val) { \
@@ -97,12 +93,11 @@ static inline void hset##prop (const void* head, Type type, size_t val) { \
     } \
 } 
 
-head_setter(cap) // hsetcap 
-head_setter(len) // hsetlen
+head_setter(cap) // hsetcap() 
+head_setter(len) // hsetlen()
 
 static inline Head4
-hgetdims (const void* head, Type type)
-{
+hgetdims (const void* head, Type type) {
     switch(type) {
         case TYPE4: return *(Head4*)head;
         case TYPE1: return (Head4){((Head1*)head)->cap, ((Head1*)head)->len};
@@ -110,8 +105,7 @@ hgetdims (const void* head, Type type)
 }
 
 static inline void
-hsetdims (const void* head, Type type, Head4 dims)
-{
+hsetdims (const void* head, Type type, Head4 dims) {
     switch(type) {
         case TYPE4: *((Head4*)head) = (Head4)dims; break;
         case TYPE1: *((Head1*)head) = (Head1){dims.cap, dims.len}; break;
@@ -119,29 +113,16 @@ hsetdims (const void* head, Type type, Head4 dims)
 }
 
 static inline size_t
-getlen (stx_t s)
-{
+getlen (stx_t s) {
     const Type type = TYPE(s);
-    return hgetlen(HEADT(s,type), type); //opt ?
+    return hgetlen (HEADT(s,type), type); //opt ?
 }
 
 static inline void
-setlen (stx_t s, size_t len)
-{
+setlen (stx_t s, size_t len) {
     const Type type = TYPE(s);
     void* head = HEADT(s, type);
     hsetlen(head, type, len);
-}
-
-static inline size_t 
-getspc (stx_t s)
-{
-    const Type type = TYPE(s);
-    void* head = HEADT(s, type);
-    switch(type) { 
-        case TYPE4: return ((Head4*)head)->cap - ((Head4*)head)->len;
-        case TYPE1: return ((Head1*)head)->cap - ((Head1*)head)->len;
-    }  
 }
 
 
@@ -149,7 +130,7 @@ static inline stx_t
 new (size_t cap)
 {
     const Type type = TYPE_FOR(cap);
-    void* head = STX_MALLOC(TOTSZ(type, cap));
+    void* head = STX_MALLOC(BLOCKSZ(type, cap));
     if (!head) return NULL;
 
     hsetdims(head, type, (Head4){cap, 0});
@@ -163,11 +144,12 @@ new (size_t cap)
     return data;
 }
 
+
 static inline stx_t 
 from (const char* src, size_t srclen)
 {
     const Type type = TYPE_FOR(srclen);
-    void* head = STX_MALLOC(TOTSZ(type, srclen));
+    void* head = STX_MALLOC(BLOCKSZ(type, srclen));
     if (!head) return NULL;
 
     hsetdims(head, type, (Head4){srclen, srclen});
@@ -182,50 +164,6 @@ from (const char* src, size_t srclen)
 }
 
 
-static inline const void* 
-resize (stx_t *ps, size_t newcap)
-{    
-    stx_t s = *ps;
-
-    const Type type = TYPE(s);
-    const void* head = HEADT(s, type);
-    Head4 dims = hgetdims(head,type);
-
-    if (newcap == dims.cap) return head;
-    // newcap < cap : optim realloc only if < 1/2 ?
-
-    const Type newtype = TYPE_FOR(newcap);
-    const int sametype = (newtype == type);
-    const size_t newsize = TOTSZ(newtype, newcap);
-    
-    void* newhead = sametype ? STX_REALLOC((void*)head, newsize)
-                             : STX_MALLOC(newsize);
-
-    if (!newhead) {
-        ERR ("stx_resize: realloc");
-        return NULL;
-    }
-    
-    char* newdata = DATA(newhead, newtype);
-    const size_t newlen = min(dims.len, newcap);
-    
-    if (!sametype) {
-        // copy data
-        memcpy (newdata, s, newlen); 
-        newdata[newlen] = 0; //nec?
-        // update type
-        FLAGS(newdata) = newtype;
-        free((void*)head);
-    }
-    
-    hsetdims (newhead, newtype, (Head4){newcap, newlen});
-    newdata[newcap] = 0;
-    
-    *ps = newdata;
-    return newhead;
-}
-
-
 // resize increase only, to new location
 static inline void* 
 grow (stx_t *ps, size_t newcap, const void* head, Type type, Head4 dims)
@@ -235,7 +173,7 @@ grow (stx_t *ps, size_t newcap, const void* head, Type type, Head4 dims)
     char* newdata;
 
     #define RELOC(t) \
-        newhead = STX_REALLOC((void*)head, TOTSZ(TYPE##t, newcap)); \
+        newhead = STX_REALLOC((void*)head, BLOCKSZ(TYPE##t, newcap)); \
         if (!newhead) {ERR("realloc"); return NULL;} \
         ((Head##t*)newhead)->cap = newcap; \
         newdata = DATA(newhead, TYPE##t)
@@ -253,7 +191,7 @@ grow (stx_t *ps, size_t newcap, const void* head, Type type, Head4 dims)
     #undef RELOC
 
     // TYPE1 -> TYPE4
-    newhead = STX_REALLOC((void*)head, TOTSZ(TYPE4, newcap));
+    newhead = STX_REALLOC((void*)head, BLOCKSZ(TYPE4, newcap));
     if (!newhead) {ERR("realloc"); return NULL;}
 
     newdata = DATA(newhead, TYPE4);
@@ -270,28 +208,6 @@ grow (stx_t *ps, size_t newcap, const void* head, Type type, Head4 dims)
     *ps = newdata;
 
     return newhead;
-}
-
-
-
-// copy only up to current length
-static stx_t
-dup (stx_t src)
-{
-    const Type type = TYPE(src);
-    const void* head = HEADT(src, type);
-    const size_t len = hgetlen(head, type);
-    const size_t cpysz = TOTSZ(type,len);
-    void* new_head = malloc(cpysz);
-
-    if (!new_head) return NULL;
-
-    memcpy (new_head, head, cpysz);
-    hsetcap (new_head, type, len);
-    stx_t ret = DATA(new_head, type);
-    ((char*)ret)[len] = 0;
-
-    return ret;
 }
 
 //==== PUBLIC ==================================================================
@@ -350,7 +266,6 @@ stx_append_strict (stx_t dst, const void* src, size_t srclen)
     return totlen;        
 
 }
-
 
 
 size_t 
@@ -439,6 +354,48 @@ stx_append_fmt_strict (stx_t dst, const char* fmt, ...)
     hsetlen(head, type, totlen);
 
     return totlen;           
+}
+
+
+int stx_resize (stx_t *ps, size_t newcap)
+{    
+    stx_t s = *ps;
+
+    const Type type = TYPE(s);
+    const void* head = HEADT(s, type);
+    Head4 dims = hgetdims(head,type);
+
+    if (newcap == dims.cap) return 1;
+
+    const Type newtype = TYPE_FOR(newcap);
+    const int sametype = (newtype == type);
+    const size_t newsize = BLOCKSZ(newtype, newcap);
+    
+    void* newhead = sametype ? STX_REALLOC((void*)head, newsize)
+                             : STX_MALLOC(newsize);
+
+    if (!newhead) {
+        ERR ("stx_resize: realloc");
+        return 0;
+    }
+    
+    char* newdata = DATA(newhead, newtype);
+    const size_t newlen = min(dims.len, newcap);
+    
+    if (!sametype) {
+        // copy data
+        memcpy (newdata, s, newlen); 
+        newdata[newlen] = 0; //nec?
+        // update type
+        FLAGS(newdata) = newtype;
+        free((void*)head);
+    }
+    
+    hsetdims (newhead, newtype, (Head4){newcap, newlen});
+    newdata[newcap] = 0;
+    
+    *ps = newdata;
+    return 1;
 }
 
 
@@ -559,8 +516,7 @@ stx_join_len (stx_t *list, int count, const char* sep, size_t seplen)
 
 
 // todo new fit type ?
-void 
-stx_trim (stx_t s)
+void stx_trim (stx_t s)
 {
     const char* front = s;
     while (isspace(*front)) ++front;
@@ -579,9 +535,28 @@ stx_trim (stx_t s)
 }
 
 
+// copy only up to current length
+stx_t stx_dup (stx_t src)
+{
+    const Type type = TYPE(src);
+    const void* head = HEADT(src, type);
+    const size_t len = hgetlen(head, type);
+    const size_t cpysz = BLOCKSZ(type,len);
+    void* new_head = malloc(cpysz);
+
+    if (!new_head) return NULL;
+
+    memcpy (new_head, head, cpysz);
+    hsetcap (new_head, type, len);
+    stx_t ret = DATA(new_head, type);
+    ((char*)ret)[len] = 0;
+
+    return ret;
+}
+
+
 // nb: memcmp(,,0) == 0
-int 
-stx_equal (stx_t a, stx_t b) 
+int stx_equal (stx_t a, stx_t b) 
 {
     const size_t lena = getlen(a);
     const size_t lenb = getlen(b);
@@ -589,8 +564,18 @@ stx_equal (stx_t a, stx_t b)
 }
 
 
-void
-stx_dbg (stx_t s)
+size_t stx_spc (stx_t s)
+{
+    const Type type = TYPE(s);
+    void* head = HEADT(s, type);
+    switch(type) { 
+        case TYPE4: return ((Head4*)head)->cap - ((Head4*)head)->len;
+        case TYPE1: return ((Head1*)head)->cap - ((Head1*)head)->len;
+    }  
+}
+
+
+void stx_dbg (stx_t s)
 {
     #define DBGFMT "cap:%zu len:%zu flags:%x data:\"%s\"\n"
     #define DBGARG (size_t)(h->cap), (size_t)(h->len), FLAGS(s), s
@@ -612,11 +597,12 @@ stx_dbg (stx_t s)
         default: ERR("stx_dbg: unknown type");
     }
 
+    fflush(stdout);
     #undef DBGFMT
     #undef DBGARG
-    fflush(stdout);
 }
-//==== WRAPPERS & CONVENIENCES =====
+
+//==== WRAPPERS ========================
 
 stx_t stx_new (size_t cap) {
     return new(cap);
@@ -630,16 +616,8 @@ stx_t stx_from_len (const void* src, size_t srclen) {
     return from(src, srclen);
 }
 
-stx_t stx_dup (stx_t src) {
-    return dup(src);
-}
-
 void stx_free (stx_t s) {
     STX_FREE(HEAD(s));
-}
-
-int stx_resize (stx_t *ps, size_t newcap) {
-    return !!resize (ps, newcap);
 }
 
 stx_t* stx_split (const char* src, const char* sep, int* outcnt) {
@@ -652,23 +630,19 @@ stx_t stx_join (stx_t *list, int count, const char* sep) {
     return stx_join_len (list, count, sep, strlen(sep));
 }
 
-size_t stx_cap (stx_t s) {
-    return hgetcap(HEAD(s), TYPE(s));
-}
-
-size_t stx_len (stx_t s) {
-    return getlen(s);
-}
-
-size_t stx_spc (stx_t s) {
-    return getspc((s));
-}
-
 void stx_reset (stx_t s) {
     setlen(s,0);
     *((char*)s) = 0;
 } 
 
 void stx_adjust (stx_t s) {
-    setlen(s,strlen(s));
+    setlen(s, strlen(s));
+}
+
+size_t stx_cap (stx_t s) {
+    return hgetcap(HEAD(s), TYPE(s));
+}
+
+size_t stx_len (stx_t s) {
+    return getlen(s);
 }
