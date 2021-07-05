@@ -71,10 +71,10 @@ static_assert (DATAOFF(TYPE4)==9, "bad TYPE4 DATAOFF");
 
 //==== PRIVATE =================================================================
 
-stx_t list_pool[LIST_POOL_MAX] = {NULL};
+static stx_t list_pool[LIST_POOL_MAX] = {NULL};
 
 #define head_getter(prop) \
-static inline size_t hget##prop (const void* head, Type type) { \
+static inline size_t hget##prop (const void* head, const Type type) { \
     switch(type) { \
         case TYPE4: return ((Head4*)head)->prop; \
         case TYPE1: return ((Head1*)head)->prop; \
@@ -85,7 +85,7 @@ head_getter(cap) // hgetcap()
 head_getter(len) // hgetlen()
 
 #define head_setter(prop) \
-static inline void hset##prop (const void* head, Type type, size_t val) { \
+static inline void hset##prop (const void* head, const Type type, const size_t val) { \
     switch(type) { \
         case TYPE4: ((Head4*)head)->prop = val; break; \
         case TYPE1: ((Head1*)head)->prop = val; break; \
@@ -97,7 +97,7 @@ head_setter(cap) // hsetcap()
 head_setter(len) // hsetlen()
 
 static inline Head4
-hgetdims (const void* head, Type type) {
+hgetdims (const void* head, const Type type) {
     switch(type) {
         case TYPE4: return *(Head4*)head;
         case TYPE1: return (Head4){((Head1*)head)->cap, ((Head1*)head)->len};
@@ -105,7 +105,7 @@ hgetdims (const void* head, Type type) {
 }
 
 static inline void
-hsetdims (const void* head, Type type, Head4 dims) {
+hsetdims (const void* head, const Type type, const Head4 dims) {
     switch(type) {
         case TYPE4: *((Head4*)head) = (Head4)dims; break;
         case TYPE1: *((Head1*)head) = (Head1){dims.cap, dims.len}; break;
@@ -119,7 +119,7 @@ getlen (stx_t s) {
 }
 
 static inline void
-setlen (stx_t s, size_t len) {
+setlen (stx_t s, const size_t len) {
     const Type type = TYPE(s);
     void* head = HEADT(s, type);
     hsetlen(head, type, len);
@@ -127,7 +127,7 @@ setlen (stx_t s, size_t len) {
 
 
 static inline stx_t 
-new (size_t cap)
+new (const size_t cap)
 {
     const Type type = TYPE_FOR(cap);
     void* head = STX_MALLOC(BLOCKSZ(type, cap));
@@ -146,7 +146,7 @@ new (size_t cap)
 
 
 static inline stx_t 
-from (const char* src, size_t srclen)
+from (const char* src, const size_t srclen)
 {
     const Type type = TYPE_FOR(srclen);
     void* head = STX_MALLOC(BLOCKSZ(type, srclen));
@@ -166,7 +166,8 @@ from (const char* src, size_t srclen)
 
 // resize increase only, to new location
 static inline void* 
-grow (stx_t *ps, size_t newcap, const void* head, Type type, Head4 dims)
+grow (stx_t *ps, const size_t newcap, 
+    const void* head, const Type type, const Head4 dims)
 {    
     stx_t s = *ps;
     void* newhead;
@@ -213,7 +214,7 @@ grow (stx_t *ps, size_t newcap, const void* head, Type type, Head4 dims)
 //==== PUBLIC ==================================================================
 
 size_t 
-stx_append (stx_t* dst, const void* src, size_t srclen) 
+stx_append (stx_t* dst, const void* src, const size_t srclen) 
 {
     stx_t s = *dst;
     
@@ -245,7 +246,7 @@ stx_append (stx_t* dst, const void* src, size_t srclen)
 
 
 long long 
-stx_append_strict (stx_t dst, const void* src, size_t srclen) 
+stx_append_strict (stx_t dst, const void* src, const size_t srclen) 
 {
     const Type type = TYPE(dst);
     void* head = HEADT(dst, type);
@@ -357,7 +358,7 @@ stx_append_fmt_strict (stx_t dst, const char* fmt, ...)
 }
 
 
-int stx_resize (stx_t *ps, size_t newcap)
+int stx_resize (stx_t *ps, const size_t newcap)
 {    
     stx_t s = *ps;
 
@@ -400,7 +401,8 @@ int stx_resize (stx_t *ps, size_t newcap)
 
 
 stx_t*
-stx_split_len (const char* src, size_t srclen, const char* sep, size_t seplen, int* outcnt)
+stx_split_len (const char* src, const size_t srclen, 
+    const char* sep, const size_t seplen, int* outcnt)
 {
     int cnt = 0; 
     stx_t* ret = NULL;
@@ -487,7 +489,7 @@ stx_list_free (const stx_t *list)
 
 
 stx_t 
-stx_join_len (stx_t *list, int count, const char* sep, size_t seplen)
+stx_join_len (stx_t *list, const int count, const char* sep, const size_t seplen)
 {
     size_t totlen = 0;
 
@@ -604,7 +606,7 @@ void stx_dbg (stx_t s)
 
 //==== WRAPPERS ========================
 
-stx_t stx_new (size_t cap) {
+stx_t stx_new (const size_t cap) {
     return new(cap);
 }
 
@@ -612,7 +614,7 @@ stx_t stx_from (const char* src) {
     return from(src, strlen(src));
 }
 
-stx_t stx_from_len (const void* src, size_t srclen) {
+stx_t stx_from_len (const void* src, const size_t srclen) {
     return from(src, srclen);
 }
 
