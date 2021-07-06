@@ -78,6 +78,7 @@ static inline size_t hget##prop (const void* head, const Type type) { \
     switch(type) { \
         case TYPE4: return ((Head4*)head)->prop; \
         case TYPE1: return ((Head1*)head)->prop; \
+        default: ERR("Bad head type"); exit(1); \
     }  \
 }
 
@@ -101,6 +102,7 @@ hgetdims (const void* head, const Type type) {
     switch(type) {
         case TYPE4: return *(Head4*)head;
         case TYPE1: return (Head4){((Head1*)head)->cap, ((Head1*)head)->len};
+        default: ERR("Bad head type"); exit(1); \
     } 
 }
 
@@ -109,6 +111,7 @@ hsetdims (const void* head, const Type type, const Head4 dims) {
     switch(type) {
         case TYPE4: *((Head4*)head) = (Head4)dims; break;
         case TYPE1: *((Head1*)head) = (Head1){dims.cap, dims.len}; break;
+        default: ERR("Bad head type"); exit(1);
     } 
 }
 
@@ -573,6 +576,7 @@ size_t stx_spc (stx_t s)
     switch(type) { 
         case TYPE4: return ((Head4*)head)->cap - ((Head4*)head)->len;
         case TYPE1: return ((Head1*)head)->cap - ((Head1*)head)->len;
+        default: ERR("Bad head type"); exit(1);
     }  
 }
 
