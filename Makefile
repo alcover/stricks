@@ -1,7 +1,7 @@
 CC = gcc
 STD = c11
 OPTIM = -O2
-WARN =  -Wextra -Wno-pedantic -Wno-unused-function -Wno-unused-variable
+WARN =  -Wall -Wextra -Wno-pedantic -Wno-unused-function -Wno-unused-variable
 CP = $(CC) -std=$(STD) $(WARN) $(OPTIM) -g
 COMP = $(CP) -c $< -o $@
 LINK = $(CP) $^ -o $@

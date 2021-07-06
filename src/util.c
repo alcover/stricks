@@ -22,21 +22,26 @@ _a > _b ? _a : _b; })
 #define SETBIT(n,i) (n) |= (1 << (i))
 
 
-// draft
+// alco
 static char*
 str_repeat (const char* pat, int n)
 {
-    const size_t patlen = strlen(pat);
+    const size_t patlen = pat ? strlen(pat) : 0;
     const size_t retlen = n*patlen;
     char* ret = malloc(retlen+1);
+
+    if (!ret) return NULL;
     
-    *ret = 0;
-    ret[retlen] = 0;
-    for(int i=0;i<n;++i) memcpy(ret+i*patlen, pat, patlen);
+    *ret = '\0';
+    ret[retlen] = '\0';
+
+    for(int i=0; i<n; ++i) 
+        memcpy(ret+i*patlen, pat, patlen);
 
     return ret;
 }
 
+// alco
 static const char*
 str_cat (const char* a, const char* b)
 {
@@ -45,15 +50,15 @@ str_cat (const char* a, const char* b)
 
     const size_t len = strlen(a) + strlen(b);
     char* ret = malloc(len+1);
-    ret[0] = 0;
-    ret[len] = 0;
+    ret[0] = '\0';
+    ret[len] = '\0';
     strcat(ret,a);
     strcat(ret,b);
 
     return ret;
 }
 
-
+// alco
 static char*
 load (const char* src_path, size_t* outlen)
 {
@@ -61,7 +66,7 @@ load (const char* src_path, size_t* outlen)
 
     if (!file) {
         perror("fopen");
-        *outlen = 0;
+        *outlen = '\0';
         return NULL;
     }
     
@@ -71,7 +76,7 @@ load (const char* src_path, size_t* outlen)
     
     rewind(file);
     fread ((char*)out, len, 1, file);
-    out[len] = 0;
+    out[len] = '\0';
     fclose(file);
     
     *outlen = len;
