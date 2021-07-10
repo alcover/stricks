@@ -48,6 +48,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 typedef const char* stx_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // create
 stx_t	stx_new (size_t cap);
 stx_t	stx_from (const char* src);
@@ -85,5 +89,8 @@ void 	stx_dbg (stx_t s);
 #define stx_catf	stx_append_fmt
 #define stx_catfs	stx_append_fmt_strict
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif
