@@ -10,8 +10,8 @@
 #include <errno.h>
 #include <stdarg.h>
 
-#include "stx.h"
-#include "util.c"
+#include "../src/stx.h"
+#include "../src/util.c"
 
 int main() {
 
@@ -42,5 +42,5 @@ int main() {
 	// stx_dbg(foo);	
 	// }
 
-return 0; 
+	return 0; 
 }

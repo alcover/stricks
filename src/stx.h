@@ -21,30 +21,33 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <string.h>
 
+// Allocators
+
 #ifndef STX_MALLOC
-#define STX_MALLOC malloc
+	#define STX_MALLOC malloc
 #endif
 
 #ifndef STX_CALLOC
-#define STX_CALLOC calloc
+	#define STX_CALLOC calloc
 #endif
 
 #ifndef STX_REALLOC
-#define STX_REALLOC realloc
+	#define STX_REALLOC realloc
 #endif
 
 #ifndef STX_FREE
-#define STX_FREE free
+	#define STX_FREE free
 #endif
 
-#ifdef STX_WARNINGS
-	#define STX_WARN(args...) ERR(args)
-#else
-	#define STX_WARN(args...) ((void)0)
+// Caches
+
+#ifndef STX_LOCAL_MEM
+	#define STX_LOCAL_MEM 1024
 #endif
 
-#define STX_LOCAL_MEM 1024
-#define STX_POOL_MEM 32*1024*1024
+#ifndef STX_LIST_POOL_MEM
+	#define STX_LIST_POOL_MEM 16*1024*1024
+#endif
 
 typedef const char* stx_t;
 
@@ -52,7 +55,8 @@ typedef const char* stx_t;
 extern "C" {
 #endif
 
-// create
+// Create
+
 stx_t	stx_new (size_t cap);
 stx_t	stx_from (const char* src);
 stx_t	stx_from_len (const void* src, size_t srclen);
@@ -62,13 +66,15 @@ stx_t*	stx_split_len (const char* src, size_t srclen, const char* sep, size_t se
 stx_t 	stx_join (stx_t *list, int count, const char* sep);
 stx_t 	stx_join_len (stx_t *list, int count, const char* sep, size_t seplen);
 
-// append
+// Append
+
 size_t		stx_append (stx_t* dst, const void* src, size_t srclen);
 long long	stx_append_strict (stx_t dst, const void* src, size_t srclen);
 size_t		stx_append_fmt (stx_t* dst, const char* fmt, ...);
 long long	stx_append_fmt_strict (stx_t dst, const char* fmt, ...);
 
-// adjust/dispose
+// Adjust/dispose
+
 void	stx_free (stx_t s);
 void	stx_list_free (const stx_t* list);
 int		stx_resize (stx_t *pstx, size_t newcap);
@@ -76,14 +82,16 @@ void	stx_reset (stx_t s);
 void	stx_adjust (stx_t s);
 void	stx_trim (stx_t s);
 
-// assess
+// Assess
+
 size_t	stx_cap (stx_t s); // capacity accessor
 size_t	stx_len (stx_t s); // length accessor
 size_t	stx_spc (stx_t s); // remaining space
 int		stx_equal (stx_t a, stx_t b);
 void 	stx_dbg (stx_t s);
 
-// shorthands
+// Shorthands
+
 #define stx_cat		stx_append
 #define stx_cats	stx_append_strict
 #define stx_catf	stx_append_fmt

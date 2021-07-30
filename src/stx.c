@@ -67,41 +67,53 @@ static_assert (DATAOFF(TYPE4)==9, "bad TYPE4 DATAOFF");
 #define TYPE(s) (FLAGS(s))
 
 #define LIST_LOCAL_MAX (STX_LOCAL_MEM/sizeof(stx_t))
-#define LIST_POOL_MAX (STX_POOL_MEM/sizeof(stx_t))
+#define LIST_POOL_MAX (STX_LIST_POOL_MEM/sizeof(stx_t))
 
 //==== PRIVATE =================================================================
 
 static stx_t list_pool[LIST_POOL_MAX] = {NULL};
 
-#define head_getter(prop) \
-static inline size_t hget##prop (const void* head, const Type type) { \
-    switch(type) { \
-        case TYPE4: return ((Head4*)head)->prop; \
-        case TYPE1: return ((Head1*)head)->prop; \
-        default: ERR("Bad head type"); exit(1); \
-    }  \
+static inline size_t 
+hgetcap (const void* head, const Type type) { 
+    switch(type) { 
+        case TYPE1: return ((Head1*)head)->cap; 
+        case TYPE4: return ((Head4*)head)->cap; 
+        default: ERR("Bad head type"); exit(1);
+    }
 }
 
-head_getter(cap) // hgetcap()
-head_getter(len) // hgetlen()
+static inline size_t 
+hgetlen (const void* head, const Type type) { 
+    switch(type) { 
+        case TYPE1: return ((Head1*)head)->len; 
+        case TYPE4: return ((Head4*)head)->len; 
+        default: ERR("Bad head type"); exit(1);
+    }
+}
 
-#define head_setter(prop) \
-static inline void hset##prop (const void* head, const Type type, const size_t val) { \
-    switch(type) { \
-        case TYPE4: ((Head4*)head)->prop = val; break; \
-        case TYPE1: ((Head1*)head)->prop = val; break; \
-        default: ERR("Bad head type"); exit(1); \
-    } \
-} 
+static inline void 
+hsetcap (const void* head, const Type type, const size_t val) { 
+    switch(type) { 
+        case TYPE1: ((Head1*)head)->cap = val; break; 
+        case TYPE4: ((Head4*)head)->cap = val; break; 
+        default: ERR("Bad head type"); exit(1);
+    } 
+}
 
-head_setter(cap) // hsetcap() 
-head_setter(len) // hsetlen()
+static inline void 
+hsetlen (const void* head, const Type type, const size_t val) { 
+    switch(type) { 
+        case TYPE1: ((Head1*)head)->len = val; break; 
+        case TYPE4: ((Head4*)head)->len = val; break; 
+        default: ERR("Bad head type"); exit(1);
+    }
+}
 
 static inline Head4
 hgetdims (const void* head, const Type type) {
     switch(type) {
-        case TYPE4: return *(Head4*)head;
         case TYPE1: return (Head4){((Head1*)head)->cap, ((Head1*)head)->len};
+        case TYPE4: return *(Head4*)head;
         default: ERR("Bad head type"); exit(1); \
     } 
 }
@@ -109,8 +121,8 @@ hgetdims (const void* head, const Type type) {
 static inline void
 hsetdims (const void* head, const Type type, const Head4 dims) {
     switch(type) {
-        case TYPE4: *((Head4*)head) = (Head4)dims; break;
         case TYPE1: *((Head1*)head) = (Head1){dims.cap, dims.len}; break;
+        case TYPE4: *((Head4*)head) = (Head4)dims; break;
         default: ERR("Bad head type"); exit(1);
     } 
 }
@@ -175,43 +187,40 @@ grow (stx_t *ps, const size_t newcap,
     stx_t s = *ps;
     void* newhead;
     char* newdata;
+    size_t newsize;
 
     #define RELOC(t) \
-        newhead = STX_REALLOC((void*)head, BLOCKSZ(TYPE##t, newcap)); \
-        if (!newhead) {ERR("realloc"); return NULL;} \
-        ((Head##t*)newhead)->cap = newcap; \
-        newdata = DATA(newhead, TYPE##t)
+    newsize = BLOCKSZ (TYPE##t, newcap); \
+    newhead = STX_REALLOC ((void*)head, newsize); \
+    if (!newhead) {ERR("failed realloc(%zu)", newsize); return NULL;} \
+    ((Head##t*)newhead)->cap = newcap; \
+    newdata = DATA(newhead, TYPE##t);
 
     // TYPE4 -> TYPE4
     if (type == TYPE4) {
-        RELOC(4); goto fin;
+        RELOC(4)
+        goto fin;
     }
 
     // TYPE1 -> TYPE1
     if (newcap <= SMALL_MAX) {
-        RELOC(1); goto fin;
+        RELOC(1)
+        goto fin;
     }
 
-    #undef RELOC
-
     // TYPE1 -> TYPE4
-    newhead = STX_REALLOC((void*)head, BLOCKSZ(TYPE4, newcap));
-    if (!newhead) {ERR("realloc"); return NULL;}
-
-    newdata = DATA(newhead, TYPE4);
-    memmove (newdata, DATA(newhead, TYPE1), dims.len+1); 
-
-    // *((Head4*)newhead) = (Head4){newcap, dims.len}; // not faster ?
-    ((Head4*)newhead)->cap = dims.cap;
+    RELOC(4)
+    memcpy (newdata, DATA(newhead, TYPE1), dims.len+1); 
     ((Head4*)newhead)->len = dims.len;
-
     FLAGS(newdata) = TYPE4;
 
     fin:
-    newdata[newcap] = 0;
+    newdata[newcap] = 0; // add cap sentinel
     *ps = newdata;
 
     return newhead;
+
+    #undef RELOC
 }
 
 //==== PUBLIC ==================================================================
@@ -231,7 +240,7 @@ stx_append (stx_t* dst, const void* src, const size_t srclen)
         head = grow (dst, totlen*2, head, type, dims);
         
         if (!head) {
-            ERR("resize");
+            ERR("failed grow()");
             return 0;
         }
 

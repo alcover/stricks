@@ -21,6 +21,19 @@ _a > _b ? _a : _b; })
 #define GETBIT(n,i) (((n) >> (i)) & 1)
 #define SETBIT(n,i) (n) |= (1 << (i))
 
+// alco
+// repeat char c n times
+static char*
+str_nchar (char c, size_t n)
+{
+    char* ret = malloc(n+1);
+    if (!ret) return NULL;
+
+    memset (ret, c, n);
+    ret[n] = 0;
+    
+    return ret;
+}
 
 // alco
 static char*

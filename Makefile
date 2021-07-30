@@ -7,47 +7,62 @@ COMP = $(CP) -c $< -o $@
 LINK = $(CP) $^ -o $@
 
 lib		= bin/stx
-unit 	= bin/unit
+check 	= bin/check
 bench 	= bin/bench
+cppbench 	= bin/cppbench
+sds 	= bin/sds
 example	= bin/example
 try		= bin/try
-sds 	= bin/sds
 
-.PHONY: all check clean bench
+.PHONY: all check clean bench cppbench
 
-all: $(lib) $(unit) $(bench) $(example) $(try)
+bin = $(lib) $(check) $(bench) $(cppbench) $(sds) $(example) $(try)
+
+all: $(bin)
 	
 $(lib): src/stx.c src/stx.h src/util.c
 	@ echo $@
 	@ $(COMP) #-D ENABLE_LOG -D STX_WARNINGS
-# 	@ ./$(unit)
+# 	@ ./$(check)
 
-$(sds): sds/sds.c sds/sds.h
+$(check): src/check.c $(lib) src/util.c
+	@ echo $@
+	@ $(CP) $< $(lib) -o $@
+# 	@ ./$(check)
+
+$(sds): bench/sds/sds.c bench/sds/sds.h
 	@ echo $@
 	@ $(CC) -std=c99 -Wall $(OPTIM) -c $< -o $@
 
-$(unit): src/unit.c $(lib) src/util.c
-	@ echo $@
-	@ $(CP) $< $(lib) -o $@
-# 	@ ./$(unit)
-
-$(bench): src/bench.c $(lib) $(sds)
+$(bench): bench/bench.c $(lib) $(sds)
 	@ echo $@
 	@ $(CC) -std=$(STD) -O0 $(WARN) $^ -o $@ -lm
 
-$(example): src/example.c $(lib)
+$(cppbench): bench/bench.cpp $(lib) $(sds)
+	@ echo $@
+	@ g++ -std=c++11 -fpermissive -lbenchmark $^ -o $@
+
+$(example): ex/example.c $(lib)
 	@ echo $@
 	@ $(LINK)
 
-$(try): src/try.c $(lib)
+$(try): ex/try.c $(lib)
 	@ echo $@
 	@ $(LINK) 
 
 check:
-	@ ./$(unit)
+	@ ./$(check)
 
 bench:
 	@ ./$(bench)
 
+# cppbench:
+# 	@ sudo cpupower frequency-set --governor performance
+# 	@ ./$(cppbench)
+# 	@ sudo cpupower frequency-set --governor powersave
+
+cppbench:
+	@ ./$(cppbench)
+
 clean:
-	@ rm -f bin/*
+	@ rm -f $(bin)

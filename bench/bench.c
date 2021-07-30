@@ -14,11 +14,13 @@ NO WARRANTY EXPRESSED OR IMPLIED
 #include <math.h>
 #include <tgmath.h> // lroundl (long double)
 
-#include "stx.h"
-#include "../sds/sds.h"
+#include "../src/stx.h"
 #define ENABLE_LOG
-#include "log.h"
-#include "util.c"
+#include "../src/log.h"
+#include "../src/util.c"
+#include "../src/test_strings.c"
+
+#include "sds/sds.h"
 
 //==============================================================================
 #define uint unsigned long
@@ -28,6 +30,7 @@ NO WARRANTY EXPRESSED OR IMPLIED
 #define BENCHBEG \
 	int counter = 0; \
 	clock_t start = clock();
+
 #define BENCHEND(lib) \
 	long double time = (long double)(clock()-start); \
 	time = 1000*time/CLOCKS_PER_SEC; \
@@ -35,11 +38,6 @@ NO WARRANTY EXPRESSED OR IMPLIED
 	LOG("%9s  %.0Lf ms", lib, time); \
 	++counter; \
 	assert(counter>0);
-
-#define W8 "aaaaaaaa"
-#define W64 W8 W8 W8 W8 W8 W8 W8 W8
-#define W256 W64 W64 W64 W64
-#define W512 W256 W256
 
 #define SECTION(title) LOG("\n" title "\n" "---------------");
 

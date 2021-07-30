@@ -52,7 +52,7 @@ Stricks or treats!
 *src/example.c* implements a mock forum with fixed size pages.  
 When the next post would truncate, the buffer is flushed.  
 
-`make && ./bin/example`
+`make && ./ex/example`
 
 
 ## Build & unit-test
