@@ -52,7 +52,7 @@ Stricks or treats!
 *src/example.c* implements a mock forum with fixed size pages.  
 When the next post would truncate, the buffer is flushed.  
 
-`make && ./ex/example`
+`make && ./bin/example`
 
 
 ## Build & unit-test
@@ -101,6 +101,45 @@ split and join
 
 ```
 
+C++ benchmark :  
+(depends on *libbenchmark-dev*)
+`make && make benchcpp`  
+
+```
+------------------------------------------------------------
+Benchmark                     Time           CPU Iterations
+------------------------------------------------------------
+SDS_from/8                   33 ns         33 ns   21195861
+SDS_from/64                  29 ns         29 ns   23880855
+SDS_from/512                 29 ns         29 ns   23829329
+SDS_from/4096               254 ns        254 ns    2749531
+SDS_from/32768             2605 ns       2604 ns     271881
+STX_from/8                   21 ns         21 ns   33658632
+STX_from/64                  33 ns         33 ns   21016625
+STX_from/512                 33 ns         33 ns   21096349
+STX_from/4096               171 ns        171 ns    4090580
+STX_from/32768             1469 ns       1469 ns     475015
+SDS_append/8                 14 ns         14 ns   48464522
+SDS_append/64                12 ns         12 ns   58368923
+SDS_append/512               12 ns         12 ns   58239215
+SDS_append/4096            1605 ns       1605 ns     432650
+SDS_append/32768          12934 ns      12925 ns      51349
+STX_append/8                  9 ns          9 ns   74110105
+STX_append/64                 9 ns          9 ns   76000411
+STX_append/512                9 ns          9 ns   75701288
+STX_append/4096             935 ns        935 ns     824923
+STX_append/32768           7011 ns       7007 ns      93732
+SDS_split_join/8             13 us         13 us      53062
+SDS_split_join/64            42 us         42 us      16840
+SDS_split_join/512          261 us        261 us       2684
+SDS_split_join/4096        2037 us       2035 us        343
+SDS_split_join/32768      17104 us      17102 us         41
+STX_split_join/8              5 us          5 us     154199
+STX_split_join/64             6 us          6 us     116075
+STX_split_join/512           16 us         16 us      44482
+STX_split_join/4096         108 us        108 us       6451
+STX_split_join/32768       1638 us       1638 us        422
+```
 
 # API
 

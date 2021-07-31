@@ -9,14 +9,14 @@ LINK = $(CP) $^ -o $@
 lib		= bin/stx
 check 	= bin/check
 bench 	= bin/bench
-cppbench 	= bin/cppbench
+benchcpp 	= bin/benchcpp
 sds 	= bin/sds
 example	= bin/example
 try		= bin/try
 
-.PHONY: all check clean bench cppbench
+.PHONY: all check clean bench benchcpp
 
-bin = $(lib) $(check) $(bench) $(cppbench) $(sds) $(example) $(try)
+bin = $(lib) $(check) $(bench) $(sds) $(example) $(try)
 
 all: $(bin)
 	
@@ -38,9 +38,9 @@ $(bench): bench/bench.c $(lib) $(sds)
 	@ echo $@
 	@ $(CC) -std=$(STD) -O0 $(WARN) $^ -o $@ -lm
 
-$(cppbench): bench/bench.cpp $(lib) $(sds)
+$(benchcpp): bench/bench.cpp $(lib) $(sds)
 	@ echo $@
-	@ g++ -std=c++11 -fpermissive -lbenchmark $^ -o $@
+	@ g++ -std=c++11 -O2 -fpermissive -lbenchmark -lpthread $^ -o $@
 
 $(example): ex/example.c $(lib)
 	@ echo $@
@@ -56,13 +56,13 @@ check:
 bench:
 	@ ./$(bench)
 
-# cppbench:
+# benchcpp:
 # 	@ sudo cpupower frequency-set --governor performance
-# 	@ ./$(cppbench)
+# 	@ ./$(benchcpp)
 # 	@ sudo cpupower frequency-set --governor powersave
 
-cppbench:
-	@ ./$(cppbench)
+benchcpp: $(benchcpp)
+	@ ./$(benchcpp)
 
 clean:
-	@ rm -f $(bin)
+	@ rm -f $(bin) $(benchcpp)
