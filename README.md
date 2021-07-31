@@ -17,12 +17,12 @@ without forcing a structured type on the user.
 typedef const char* stx_t;
 ```  
 
-A *strick* is just a normal `char*`, and can be passed to `<string.h>` functions.  
-Metadata, invisible to the user, are set in a prefix header :    
+A *strick* looks like a normal `char*` and can be passed to `<string.h>` functions.  
+Metadata are hidden in a prefix header :    
 
 ![schema](assets/schema.png)
 
-Header and string occupy a **continuous** block of memory,  
+Header and string occupy a **continuous** memory block,  
 avoiding the further indirection of `{len,*str}` schemes.    
 This technique is notably used in [SDS](https://github.com/antirez/sds), 
 now part of [Redis](https://github.com/redis/redis).
@@ -35,8 +35,8 @@ now part of [Redis](https://github.com/redis/redis).
 #include "stx.h"
 
 int main() {
-    stx_t s = stx_from("Stricks");
-    stx_append(&s, " or treats!");        
+    stx_t s = stx_from("Treats or...");
+    stx_append(&s, "Stricks!");        
     printf(s);
     return 0;
 }
@@ -44,7 +44,7 @@ int main() {
 
 ```
 $ gcc app.c stx -o app && ./app
-Stricks or treats!
+Treats or...Stricks!
 ```
 
 #### Sample
@@ -102,43 +102,45 @@ split and join
 ```
 
 C++ benchmark :  
-(depends on *libbenchmark-dev*)
+(depends on *libbenchmark-dev*)  
 `make && make benchcpp`  
+
+On Thinkpad T420 with `cpupower frequency-set --governor performance` :
 
 ```
 ------------------------------------------------------------
 Benchmark                     Time           CPU Iterations
 ------------------------------------------------------------
-SDS_from/8                   33 ns         33 ns   21195861
-SDS_from/64                  29 ns         29 ns   23880855
-SDS_from/512                 29 ns         29 ns   23829329
-SDS_from/4096               254 ns        254 ns    2749531
-SDS_from/32768             2605 ns       2604 ns     271881
-STX_from/8                   21 ns         21 ns   33658632
-STX_from/64                  33 ns         33 ns   21016625
-STX_from/512                 33 ns         33 ns   21096349
-STX_from/4096               171 ns        171 ns    4090580
-STX_from/32768             1469 ns       1469 ns     475015
-SDS_append/8                 14 ns         14 ns   48464522
-SDS_append/64                12 ns         12 ns   58368923
-SDS_append/512               12 ns         12 ns   58239215
-SDS_append/4096            1605 ns       1605 ns     432650
-SDS_append/32768          12934 ns      12925 ns      51349
-STX_append/8                  9 ns          9 ns   74110105
-STX_append/64                 9 ns          9 ns   76000411
-STX_append/512                9 ns          9 ns   75701288
-STX_append/4096             935 ns        935 ns     824923
-STX_append/32768           7011 ns       7007 ns      93732
-SDS_split_join/8             13 us         13 us      53062
-SDS_split_join/64            42 us         42 us      16840
-SDS_split_join/512          261 us        261 us       2684
-SDS_split_join/4096        2037 us       2035 us        343
-SDS_split_join/32768      17104 us      17102 us         41
-STX_split_join/8              5 us          5 us     154199
-STX_split_join/64             6 us          6 us     116075
-STX_split_join/512           16 us         16 us      44482
-STX_split_join/4096         108 us        108 us       6451
-STX_split_join/32768       1638 us       1638 us        422
+SDS_from/8                   33 ns         33 ns   21363820
+SDS_from/64                  29 ns         29 ns   23942248
+SDS_from/512                 29 ns         29 ns   23982314
+SDS_from/4096               271 ns        271 ns    2585840
+SDS_from/32768             2738 ns       2738 ns     255377
+STX_from/8                   21 ns         21 ns   33747602
+STX_from/64                  20 ns         20 ns   35346041
+STX_from/512                 20 ns         20 ns   35170533
+STX_from/4096               170 ns        170 ns    4104671
+STX_from/32768             1462 ns       1462 ns     467821
+SDS_append/8                 14 ns         14 ns   48313704
+SDS_append/64                12 ns         12 ns   57793801
+SDS_append/512               12 ns         12 ns   57707384
+SDS_append/4096            1617 ns       1617 ns     426224
+SDS_append/32768          13175 ns      13174 ns      50770
+STX_append/8                  9 ns          9 ns   72565984
+STX_append/64                 9 ns          9 ns   74644788
+STX_append/512               10 ns         10 ns   75197471
+STX_append/4096             886 ns        886 ns     776564
+STX_append/32768           7035 ns       7033 ns      86241
+SDS_split_join/8             13 us         13 us      52485
+SDS_split_join/64            42 us         42 us      16515
+SDS_split_join/512          263 us        263 us       2647
+SDS_split_join/4096        2050 us       2050 us        339
+SDS_split_join/32768      17462 us      17461 us         40
+STX_split_join/8              5 us          5 us     152980
+STX_split_join/64             6 us          6 us     112486
+STX_split_join/512           16 us         16 us      43388
+STX_split_join/4096         108 us        108 us       6412
+STX_split_join/32768       1707 us       1707 us        404
 ```
 
 # API
@@ -158,13 +160,11 @@ STX_split_join/32768       1638 us       1638 us        422
 [stx_append_fmt](#stx_append_fmt)  
 [stx_append_fmt_strict](#stx_append_fmt_strict)  
 
-#### free / adjust
-[stx_free](#stx_free)  
-[stx_list_free](#stx_list_free)  
-[stx_reset](#stx_reset)  
+#### adjust / reset
 [stx_resize](#stx_resize)  
 [stx_adjust](#stx_adjust)  
 [stx_trim](#stx_trim)  
+[stx_reset](#stx_reset)  
 
 #### assess
 [stx_cap](#stx_cap)  
@@ -172,6 +172,10 @@ STX_split_join/32768       1638 us       1638 us        422
 [stx_spc](#stx_spc)  
 [stx_equal](#stx_equal)  
 [stx_dbg](#stx_dbg)  
+
+#### free
+[stx_free](#stx_free)  
+[stx_list_free](#stx_list_free)  
 
 
 Custom allocators can be defined with  

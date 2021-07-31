@@ -213,11 +213,14 @@ void u_join (const char* word, const char* sep, uint n)
 	free((void*)pat);
 }
 
+#define SEP "|"
+
 void split_join()
 {
 	SECTION("split and join")
-	u_join (W8,	  "|", 5000000);
-	u_join (W256, "|", 500000);
+	u_join (W8,		SEP, 5000000);
+	u_join (W256, 	SEP, 500000);
+	u_join (W4096, 	SEP, 50000);
 }
 
 

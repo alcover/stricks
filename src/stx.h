@@ -73,14 +73,17 @@ long long	stx_append_strict (stx_t dst, const void* src, size_t srclen);
 size_t		stx_append_fmt (stx_t* dst, const char* fmt, ...);
 long long	stx_append_fmt_strict (stx_t dst, const char* fmt, ...);
 
-// Adjust/dispose
+// Adjust / reset
 
-void	stx_free (stx_t s);
-void	stx_list_free (const stx_t* list);
 int		stx_resize (stx_t *pstx, size_t newcap);
 void	stx_reset (stx_t s);
 void	stx_adjust (stx_t s);
 void	stx_trim (stx_t s);
+
+// Free
+
+void	stx_free (stx_t s);
+void	stx_list_free (const stx_t* list);
 
 // Assess
 
